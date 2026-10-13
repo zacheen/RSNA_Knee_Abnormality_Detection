@@ -1,7 +1,6 @@
-"""Merge submission files written by one infer.py run per cache layout into one, weighting each by its model count.
+"""Merge infer.py submissions from one run per cache layout, weighting each file by its model count.
 
-Each run averages its own checkpoints with equal weight, so weighting a file by the number of checkpoints it used
-gives every checkpoint of the whole ensemble the same weight, as if all of them had run in one pass.
+Each run averages its own checkpoints equally, so weighting by model count gives every checkpoint equal weight overall.
 
 Usage
   python src/merge_submissions.py --out submission.csv sub_v3.csv sub_v4.csv

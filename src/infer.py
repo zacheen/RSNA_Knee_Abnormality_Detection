@@ -39,7 +39,7 @@ def _load(uid):
 
 
 def mismatch(ck: dict) -> dict:
-    """Settings where the checkpoint differs from this run, as {key: (checkpoint, current)}. Empty means it can run."""
+    """Differing settings as {key: (checkpoint, current)}. Empty means the checkpoint can run."""
     # A mismatch would not crash (global pooling accepts any size), only score worse silently.
     wrong = {k: (ck[k], v) for k, v in SETTINGS.items() if k != "planes" and k in ck and ck[k] != v}
     # Fewer slots is fine when they are a prefix, because both architectures drop the trailing slots of the volume.
@@ -55,8 +55,8 @@ def main():
     ap.add_argument("--workers", type=int, default=os.cpu_count())
     ap.add_argument("--out", type=Path, default=WORK / "submission.csv")
     ap.add_argument("--only-matching", action="store_true",
-                    help="skip checkpoints built for another cache instead of stopping, so one ensemble can be run "
-                         "once per cache layout. The count used goes to <out>.models")
+                    help="skip checkpoints built for another cache instead of exiting, for one run per cache layout. "
+                         "The count used goes to <out>.models")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -104,7 +104,7 @@ def main():
     sub[LABELS] = probs
     args.out.parent.mkdir(parents=True, exist_ok=True)
     sub.to_csv(args.out, index=False, lineterminator="\n")
-    Path(f"{args.out}.models").write_text(str(len(models)))  # the weight of this file when runs per cache are merged
+    Path(f"{args.out}.models").write_text(str(len(models)))  # merge_submissions.py weights this file by it
     print(f"wrote {args.out} rows={len(sub)} predicted={len(preds)} in {time.time() - t0:.0f}s")
 
 
