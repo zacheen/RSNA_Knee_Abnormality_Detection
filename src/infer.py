@@ -38,16 +38,14 @@ def _load(uid):
     return uid, vol, present
 
 
-def load_model(path: Path, device) -> torch.nn.Module:
-    ck = load_checkpoint(path)
+def mismatch(ck: dict) -> dict:
+    """Settings where the checkpoint differs from this run, as {key: (checkpoint, current)}. Empty means it can run."""
     # A mismatch would not crash (global pooling accepts any size), only score worse silently.
     wrong = {k: (ck[k], v) for k, v in SETTINGS.items() if k != "planes" and k in ck and ck[k] != v}
     # Fewer slots is fine when they are a prefix, because both architectures drop the trailing slots of the volume.
     if not is_slot_prefix(ck["planes"], SETTINGS["planes"]):
         wrong["planes"] = (ck["planes"], SETTINGS["planes"])
-    if wrong:
-        raise SystemExit(f"{path} was trained with different settings (checkpoint, current): {wrong}")
-    return build_from_checkpoint(ck).to(device).eval()
+    return wrong
 
 
 def main():
@@ -56,12 +54,24 @@ def main():
     ap.add_argument("--budget-hours", type=float, default=8.5)
     ap.add_argument("--workers", type=int, default=os.cpu_count())
     ap.add_argument("--out", type=Path, default=WORK / "submission.csv")
+    ap.add_argument("--only-matching", action="store_true",
+                    help="skip checkpoints built for another cache instead of stopping, so one ensemble can be run "
+                         "once per cache layout. The count used goes to <out>.models")
     args = ap.parse_args()
 
     t0 = time.time()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    models = [load_model(c, device) for c in args.ckpt]
-    print(f"loaded {len(models)} checkpoint(s)", flush=True)
+    models = []
+    for c in args.ckpt:
+        ck = load_checkpoint(c)
+        wrong = mismatch(ck)
+        if wrong and not args.only_matching:
+            raise SystemExit(f"{c} was trained with different settings (checkpoint, current): {wrong}")
+        if not wrong:
+            models.append(build_from_checkpoint(ck).to(device).eval())
+    print(f"loaded {len(models)} checkpoint(s), skipped {len(args.ckpt) - len(models)}", flush=True)
+    if not models:
+        raise SystemExit("no checkpoint matches this run's cache settings")
 
     uids = pd.read_csv(DATA_ROOT / "test.csv").StudyInstanceUID.tolist()
     preds, t_first = {}, None
@@ -94,6 +104,7 @@ def main():
     sub[LABELS] = probs
     args.out.parent.mkdir(parents=True, exist_ok=True)
     sub.to_csv(args.out, index=False, lineterminator="\n")
+    Path(f"{args.out}.models").write_text(str(len(models)))  # the weight of this file when runs per cache are merged
     print(f"wrote {args.out} rows={len(sub)} predicted={len(preds)} in {time.time() - t0:.0f}s")
 
 
