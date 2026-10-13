@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Download cache zips from their build kernels, extract into data/work/cache, delete each zip once extracted.
+# Download cache zips from their build kernels, extract into $DEST (default data/work/cache), delete each zip once extracted.
 # The server drops long transfers (schannel "server closed abruptly"), and curl's own retry budget runs out on a
 # 10 GB file. So the outer loop keeps resuming with a freshly signed URL until the size on disk equals the size the
 # server reports. Rerunning the script also resumes.
-# Usage: bash tools/fetch_cache.sh <kernel slug>...   e.g. rsna-knee-build-cache
+# Usage: [DEST=data/work/cache_v4] bash tools/fetch_cache.sh <kernel slug>...   e.g. rsna-knee-build-cache
 set -euo pipefail
 cd "$(dirname "$0")/.."
-mkdir -p data/work/cache
+DEST=${DEST:-data/work/cache}  # one folder per cache version, so train globs never mix layouts
+mkdir -p "$DEST"
 urls() { conda run -n rsna_knee python tools/kernel_output_urls.py "zacheenoao/$1" 'cache_train.*\.zip' | tr -d '\r'; }
 for k in "$@"; do
   d=data/cloud_cache/$k  # one folder per kernel, so a loop never touches another kernel's zip
@@ -24,9 +25,9 @@ for k in "$@"; do
       curl -sS -L --fail --retry 5 --retry-delay 5 --retry-all-errors -C - -o "$f" "$url" || sleep 10
     done
     echo "$(date +%H:%M) extracting $name ($(du -h "$f" | cut -f1))"
-    unzip -q -o "$f" -d data/work/cache || { echo "extract failed, kept $f" >&2; exit 1; }
+    unzip -q -o "$f" -d "$DEST" || { echo "extract failed, kept $f" >&2; exit 1; }
     rm -f "$f"
   done
 done
 echo "$(date +%H:%M) done"
-du -sh data/work/cache/* 2>/dev/null
+du -sh "$DEST"/* 2>/dev/null
