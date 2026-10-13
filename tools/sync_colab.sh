@@ -11,7 +11,14 @@ cp src/*.py tools/kernel_output_urls.py "$dst/code/"
 bash tools/code_version.sh > "$dst/code/VERSION"
 cp data/work/report_labels*.jsonl "$dst/labels/"
 cp data/raw/train.csv "$dst/raw/"
-cp colab/runner.ipynb "$dst/"
+# KEEP_RUNNER=1 leaves runner.ipynb alone, because a copy written while it is open in Colab gets overwritten by its autosave.
+[ "${KEEP_RUNNER:-0}" = 1 ] || cp colab/runner.ipynb "$dst/"
+# runner_A and runner_B differ only in their jobs file, so two Colab sessions can train at once without taking the same job.
+for v in A B; do
+  sed "s/JOBS_FILE = 'jobs.txt'/JOBS_FILE = 'jobs_$v.txt'/" colab/runner.ipynb > "$dst/runner_$v.ipynb"
+  grep -q "jobs_$v.txt" "$dst/runner_$v.ipynb"
+  [ -f "$dst/jobs_$v.txt" ] || cp colab/jobs.example.txt "$dst/jobs_$v.txt"
+done
 [ -f "$dst/jobs.txt" ] || cp colab/jobs.example.txt "$dst/jobs.txt"
 [ -f "$dst/cache_kernels.txt" ] || cp colab/cache_kernels.example.txt "$dst/cache_kernels.txt"
 ls "$dst" "$dst/code"
