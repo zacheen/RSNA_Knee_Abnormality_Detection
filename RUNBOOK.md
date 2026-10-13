@@ -526,6 +526,9 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | L4 | 2026-10-12 | 本機 GPU。第 1b 輪的設定與 v2s 標籤，pooling 改成 `--pool conv`（切片序列上兩層 1D 卷積，再接 attention pooling） | **0.8559**，目前最好的單一模型。六輪加上 L4 成為第七個等權成員，ensemble 從 0.8704 升到 **0.8748**。只取 1b、5c、L4 三個是 0.8751，差距在雜訊內，所以不挑子集 | checkpoint 上傳為私人 dataset `rsna-knee-local-models`，由 `rsna-knee-submit-ens` 第 4 版掛載，共 21 個 checkpoint |
 | L5 | 2026-10-12 | L4 的設定，seed 改成 1。確認 L4 的提升不是 seed 的運氣 | **0.8564**，與 L4 幾乎相同。八個成員等權是 **0.8772**。attention 組與 depth-conv 組的權重在 0.25 到 0.75 之間都落在 0.877 到 0.880，差距在雜訊內，所以維持每個 checkpoint 等權 | 加進 `rsna-knee-local-models`，由 `rsna-knee-submit-ens` 第 5 版掛載，共 24 個 checkpoint |
 | L6 | 2026-10-12 | L4 的設定，seed 改成 2 | 0.8562。九個成員是 0.8778，只比八個多 0.0006，depth-conv 的 seed 也已飽和 | 沒有加進提交 |
+| L7 | 2026-10-12 | 本機 GPU。L4 的設定，骨幹改成 resnet34，cache v1 | **0.8624**，目前最好的單一模型。每個 epoch 約 15.5 分鐘，是 resnet18 的兩倍 | 還沒上傳 |
+| C1 | 2026-10-12 | Colab L4 GPU。L4 的設定，cache v3 的 5 個 slot，seed 0。每個 epoch 452 秒 | 0.8394，比同設定 3 個 slot 的 L4、L5 低約 0.017，但在 seed 雜訊的範圍內 | 還沒上傳 |
+| 十成員 | 2026-10-13 | 所有成員在 cache v3 上評估。3 個 slot 的模型只讀前 3 個 slot，所以分數與 cache v1 上相同 | 八個成員 0.8772，加 L7 是 0.8815，再加 C1 是 **0.8842**，再加 L6 反而是 0.8838。C1 單獨較弱卻能拉高 ensemble，表示多出來的兩個序列讓它的錯誤和其他成員不同。前幾名子集約 0.887，差距在雜訊內，照慣例不挑子集 | 下一個提交候選。C1 需要推論端也建 5 個 slot |
 
 **第一次拿到排行榜分數（2026-10-13）。** 完成身分驗證後，`rsna-knee-submit-ens` 第 3 版（六個 attention 成員）public 是 0.882，第 5 版（再加 L4 與 L5）是 **0.888**。兩者在 58 筆 GT 上的差距方向相同，所以 58 筆 GT 可以當作排行榜的參考。排行榜第 1 名是 0.966，第 29 名是 0.961，差距約 0.07。
 
