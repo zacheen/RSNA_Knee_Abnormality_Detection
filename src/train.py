@@ -19,8 +19,8 @@ from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader, Dataset
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import CROP_FG, DATA_ROOT, IMG_SIZE, LABELS, N_SLICES, PLANES, SETTINGS, WORK, code_version  # noqa: E402
-from model import KneeNet, mirror_lr, predict_tta, to_input  # noqa: E402
+from config import BAND, CROP_FG, CROP_MM, DATA_ROOT, IMG_SIZE, LABELS, N_SLICES, PLANES, SETTINGS, WORK, code_version  # noqa: E402
+from model import KneeNet, WindowNet, mirror_lr, predict_tta, to_input  # noqa: E402
 from report_labels import load_labels as load_report_labels  # noqa: E402
 
 
@@ -31,6 +31,10 @@ def _check_cache(d: Path, meta: pd.DataFrame):
     """
     if "crop_fg" in meta and bool(meta.crop_fg.iloc[0]) != CROP_FG:
         raise SystemExit(f"{d} was built with crop_fg={bool(meta.crop_fg.iloc[0])}, this run has {CROP_FG}")
+    built = (float(meta.crop_mm.iloc[0]) if "crop_mm" in meta else 0.0,
+             [float(x) for x in str(meta.band.iloc[0]).split(",")] if "band" in meta else [0.0, 1.0])
+    if built != (CROP_MM, BAND):
+        raise SystemExit(f"{d} was built with (crop_mm, band)={built}, this run has {(CROP_MM, BAND)}")
     shape = np.load(d / f"{meta.StudyInstanceUID.iloc[0]}.npy", mmap_mode="r").shape
     if shape != (len(PLANES), N_SLICES, IMG_SIZE, IMG_SIZE):
         raise SystemExit(f"{d} holds {shape}, this run expects {(len(PLANES), N_SLICES, IMG_SIZE, IMG_SIZE)}")
@@ -93,6 +97,10 @@ def main():
     ap.add_argument("--wd", type=float, default=1e-3)
     ap.add_argument("--dropout", type=float, default=0.25)
     ap.add_argument("--pool", choices=["attn", "conv"], default="attn", help="conv also sees slice order")
+    ap.add_argument("--arch", choices=["slices", "windows"], default="slices",
+                    help="windows encodes 3-slice RGB windows with per-finding attention, see WindowNet")
+    ap.add_argument("--crop", type=int, default=288, help="windows only, square crop taken from the cached slices")
+    ap.add_argument("--train-windows", type=int, default=32, help="windows only, windows encoded per study per step")
     ap.add_argument("--avg-last", type=int, default=3, help="keep this many final epochs and average their predictions")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--train-on-gt", action="store_true")
@@ -124,7 +132,11 @@ def main():
     dl_va = DataLoader(CacheDataset(val_ids, paths, present, gt, False), batch_size=args.bs,
                        num_workers=args.workers) if val_ids else None
 
-    model = KneeNet(args.backbone, pretrained=True, dropout=args.dropout, pool=args.pool, n_slots=len(PLANES)).to(device)
+    window_args = {"crop": args.crop, "train_windows": args.train_windows}
+    if args.arch == "windows":
+        model = WindowNet(args.backbone, pretrained=True, n_slots=len(PLANES), **window_args).to(device)
+    else:
+        model = KneeNet(args.backbone, pretrained=True, dropout=args.dropout, pool=args.pool, n_slots=len(PLANES)).to(device)
     enc = list(model.encoder.parameters())
     enc_ids = {id(t) for t in enc}
     rest = [t for t in model.parameters() if id(t) not in enc_ids]
@@ -165,8 +177,8 @@ def main():
             msg += f" val_macro_auc={macro_auc(y_va, p_va)[0]:.4f}"
         print(msg, flush=True)
         ck = args.out.with_name(f"{args.out.stem}_ep{ep + 1:02d}{args.out.suffix}")
-        torch.save({"state_dict": model.state_dict(), "backbone": args.backbone, "pool": args.pool, "code_version": code_version(),
-                    **SETTINGS}, ck)
+        torch.save({"state_dict": model.state_dict(), "backbone": args.backbone, "pool": args.pool, "arch": args.arch,
+                    "window_args": window_args, "code_version": code_version(), **SETTINGS}, ck)
         kept.append((ck, p_va))
         if len(kept) > args.avg_last:
             kept.pop(0)[0].unlink()  # the submit kernel averages every kneenet*.pt it finds, so evicted epochs must not linger

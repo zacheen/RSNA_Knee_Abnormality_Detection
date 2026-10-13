@@ -68,15 +68,76 @@ POOLS = {"attn": AttnPool, "conv": DepthConvPool}
 
 
 def load_checkpoint(path) -> dict:
-    """Read a checkpoint, defaulting the keys older ones lack (they were uncropped, 3-slot and used attn pooling)."""
-    return {"crop_fg": False, "pool": "attn", "planes": ALL_SLOTS[:3], **torch.load(path, map_location="cpu")}
+    """Read a checkpoint, defaulting the keys older ones lack (they were uncropped, 3-slot, used attn pooling, spread
+    slices over the whole stack and were the per-slice KneeNet)."""
+    return {"crop_fg": False, "pool": "attn", "planes": ALL_SLOTS[:3], "crop_mm": 0.0, "band": [0.0, 1.0],
+            "arch": "slices", **torch.load(path, map_location="cpu")}
 
 
-def build_from_checkpoint(ck: dict) -> "KneeNet":
-    """KneeNet with the checkpoint's architecture and weights, without a pretrained download (scoring is offline)."""
-    model = KneeNet(ck["backbone"], pretrained=False, pool=ck["pool"], n_slots=len(ck["planes"]))
+def build_from_checkpoint(ck: dict) -> nn.Module:
+    """The checkpoint's architecture with its weights, without a pretrained download (scoring is offline)."""
+    if ck["arch"] == "windows":
+        model = WindowNet(ck["backbone"], pretrained=False, n_slots=len(ck["planes"]), **ck["window_args"])
+    else:
+        model = KneeNet(ck["backbone"], pretrained=False, pool=ck["pool"], n_slots=len(ck["planes"]))
     model.load_state_dict(ck["state_dict"])
     return model
+
+
+class WindowNet(nn.Module):
+    """Three adjacent cached slices form one RGB window, every window is encoded, and each finding attends over all
+    windows of all slots with its own query.
+
+    Windows never cross a slot boundary. In training the crop position is random and only train_windows windows
+    are encoded per step, which keeps memory bounded. In eval every window is used with a centre crop.
+    """
+
+    MEAN = (0.485, 0.456, 0.406)
+    STD = (0.229, 0.224, 0.225)
+
+    def __init__(self, backbone: str = "convnext_tiny", pretrained: bool = True, n_slots: int = 5, crop: int = 288,
+                 train_windows: int = 32, dim: int = 384, chunk: int = 64):
+        super().__init__()
+        self.encoder = timm.create_model(backbone, pretrained=pretrained, in_chans=3, num_classes=0)
+        f = self.encoder.num_features
+        self.n_slots, self.crop, self.train_windows, self.chunk = n_slots, crop, train_windows, chunk
+        self.proj = nn.Sequential(nn.Linear(f, dim), nn.LayerNorm(dim))
+        self.slot_emb = nn.Embedding(n_slots, dim)
+        self.pos_emb = nn.Linear(1, dim)
+        nn.init.zeros_(self.slot_emb.weight)
+        nn.init.zeros_(self.pos_emb.weight)
+        nn.init.zeros_(self.pos_emb.bias)
+        self.score = nn.Sequential(nn.Linear(dim, 256), nn.Tanh(), nn.Dropout(0.2), nn.Linear(256, len(LABELS)))
+        self.cls_w = nn.Parameter(torch.randn(len(LABELS), dim) * dim ** -0.5)
+        self.cls_b = nn.Parameter(torch.zeros(len(LABELS)))
+        self.register_buffer("mean", torch.tensor(self.MEAN).view(1, 3, 1, 1), persistent=False)
+        self.register_buffer("std", torch.tensor(self.STD).view(1, 3, 1, 1), persistent=False)
+
+    def forward(self, vol, present):
+        # vol [B, P, D, H, W] float in [0, 1]; present [B, P] bool
+        vol, present = vol[:, : self.n_slots], present[:, : self.n_slots]
+        b, p, d, h, w = vol.shape
+        c = min(self.crop, h, w)
+        if self.training:
+            y0, x0 = np.random.randint(0, h - c + 1), np.random.randint(0, w - c + 1)
+        else:
+            y0, x0 = (h - c) // 2, (w - c) // 2
+        vol = vol[..., y0:y0 + c, x0:x0 + c]
+        slot = torch.arange(p, device=vol.device).repeat_interleave(d - 2)
+        centre = torch.arange(1, d - 1, device=vol.device).repeat(p)
+        if self.training and self.train_windows < len(slot):
+            keep = torch.randperm(len(slot), device=vol.device)[: self.train_windows].sort().values
+            slot, centre = slot[keep], centre[keep]
+        idx = centre[:, None] + torch.arange(-1, 2, device=vol.device)  # [W, 3]
+        win = vol[:, slot[:, None], idx]  # [B, W, 3, c, c]
+        x = (win.reshape(-1, 3, c, c) - self.mean) / self.std
+        feats = torch.cat([self.encoder(x[i:i + self.chunk]) for i in range(0, len(x), self.chunk)])
+        tok = self.proj(feats.reshape(b, len(slot), -1)) + self.slot_emb(slot) + self.pos_emb((centre / (d - 1))[:, None].to(feats.dtype))
+        valid = present[:, slot]  # [B, W]
+        a = self.score(tok).float().masked_fill(~valid[..., None], float("-inf"))
+        a = torch.nan_to_num(torch.softmax(a, dim=1))  # a study with no slot at all gets zero weights, not NaN
+        pooled = torch.einsum("bwk,bwd->bkd", a, tok.float())
+        return (pooled * self.cls_w).sum(-1) + self.cls_b
 
 
 class KneeNet(nn.Module):

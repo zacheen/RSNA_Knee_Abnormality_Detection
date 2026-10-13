@@ -58,12 +58,31 @@ def _crop_square(slices: list) -> list:
     return [_pad_square(s[y0:y1, x0:x1]) for s in slices]
 
 
-def read_series(series_dir: Path, n_slices: int, size: int, crop: bool = False) -> np.ndarray:
+def _crop_mm(img: np.ndarray, ds, crop_mm: float) -> np.ndarray:
+    """Square crop of crop_mm around the slice centre, padded with the slice minimum where the field of view is smaller.
+
+    Fixing millimetres instead of pixels gives every scanner the same anatomical scale, which pixel spacings that
+    differ 3x across sites otherwise break.
+    """
+    spacing = getattr(ds, "PixelSpacing", None)
+    row_mm, col_mm = (float(spacing[0]), float(spacing[1])) if spacing is not None else (1.0, 1.0)
+    nh, nw = max(1, round(crop_mm / row_mm)), max(1, round(crop_mm / col_mm))
+    h, w = img.shape
+    out = np.full((nh, nw), img.min(), img.dtype)
+    sy, sx = (h - nh) // 2, (w - nw) // 2  # negative when the crop is larger than the image
+    src = img[max(sy, 0):max(sy, 0) + min(h, nh), max(sx, 0):max(sx, 0) + min(w, nw)]
+    out[max(-sy, 0):max(-sy, 0) + src.shape[0], max(-sx, 0):max(-sx, 0) + src.shape[1]] = src
+    return out
+
+
+def read_series(series_dir: Path, n_slices: int, size: int, crop: bool = False, crop_mm: float = 0.0,
+                band: tuple = (0.0, 1.0)) -> np.ndarray:
     """Return (n_slices, size, size) uint8, slices ordered along the acquisition normal.
 
     Headers are read for every file to get the order, but pixels are decoded only for the
     n_slices sampled positions. Pixel decoding dominates runtime, so this is the main speed lever.
-    Without crop a 640x1280 slice is squashed to a square.
+    Slices are spaced evenly between the band fractions of the stack. crop_mm > 0 takes a physical centre crop and
+    overrides crop. Without either, a 640x1280 slice is squashed to a square.
     """
     files = sorted(long_path(series_dir).glob("*.dcm"))
     if not files:
@@ -72,10 +91,14 @@ def read_series(series_dir: Path, n_slices: int, size: int, crop: bool = False) 
     files = [files[i] for i in np.argsort(positions, kind="stable")]
 
     # Short series are stretched by repeating indices, so every plane yields the same depth.
-    idx = np.linspace(0, len(files) - 1, n_slices).round().astype(int)
+    last = len(files) - 1
+    idx = np.linspace(band[0] * last, band[1] * last, n_slices).round().astype(int)
     keep = np.unique(idx)
-    raw = [_to_float(pydicom.dcmread(files[i])) for i in keep]
-    if crop:
+    dss = [pydicom.dcmread(files[i]) for i in keep]
+    raw = [_to_float(ds) for ds in dss]
+    if crop_mm > 0:
+        raw = [_crop_mm(img, ds, crop_mm) for img, ds in zip(raw, dss)]
+    elif crop:
         raw = _crop_square(raw)
     decoded = {i: cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA) for i, img in zip(keep, raw)}
     vol = np.stack([decoded[i] for i in idx])

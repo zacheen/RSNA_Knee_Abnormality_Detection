@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import CROP_FG, DATA_ROOT, IMG_SIZE, N_SLICES, PLANES, SLOT_SPECS, WORK  # noqa: E402
+from config import BAND, CROP_FG, CROP_MM, DATA_ROOT, IMG_SIZE, N_SLICES, PLANES, SLOT_SPECS, WORK  # noqa: E402
 from dicom_io import long_path, read_series  # noqa: E402
 
 
@@ -53,7 +53,7 @@ def load_study(study_uid: str, series: pd.DataFrame, split_dir: Path):
         if s_uid is None:
             continue
         try:
-            vol[p] = read_series(split_dir / study_uid / s_uid, N_SLICES, IMG_SIZE, CROP_FG)
+            vol[p] = read_series(split_dir / study_uid / s_uid, N_SLICES, IMG_SIZE, CROP_FG, CROP_MM, BAND)
             present[p] = True
         except Exception as e:  # one corrupt series must not cost the whole study
             print(f"[warn] {study_uid} {plane} {s_uid}: {type(e).__name__}: {e}", flush=True)
@@ -66,7 +66,7 @@ def _worker(args):
     vol, present = load_study(study_uid, series, split_dir)
     np.save(out_dir / f"{study_uid}.npy", vol)
     return {"StudyInstanceUID": study_uid, **{f"has_{p}": bool(x) for p, x in zip(PLANES, present)},
-            "seconds": round(time.time() - t0, 2), "crop_fg": CROP_FG}
+            "seconds": round(time.time() - t0, 2), "crop_fg": CROP_FG, "crop_mm": CROP_MM, "band": ",".join(map(str, BAND))}
 
 
 def main():
