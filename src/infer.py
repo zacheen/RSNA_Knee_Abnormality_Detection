@@ -21,7 +21,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_cache import load_study  # noqa: E402
 from config import DATA_ROOT, LABELS, SETTINGS, WORK, is_slot_prefix  # noqa: E402
-from model import KneeNet, build_from_checkpoint, load_checkpoint, predict_tta, to_input  # noqa: E402
+from model import build_from_checkpoint, load_checkpoint, predict_tta, to_input  # noqa: E402
 
 _series = None
 
@@ -38,11 +38,11 @@ def _load(uid):
     return uid, vol, present
 
 
-def load_model(path: Path, device) -> KneeNet:
+def load_model(path: Path, device) -> torch.nn.Module:
     ck = load_checkpoint(path)
     # A mismatch would not crash (global pooling accepts any size), only score worse silently.
     wrong = {k: (ck[k], v) for k, v in SETTINGS.items() if k != "planes" and k in ck and ck[k] != v}
-    # Fewer slots is fine when they are a prefix, because KneeNet drops the trailing slots of the volume.
+    # Fewer slots is fine when they are a prefix, because both architectures drop the trailing slots of the volume.
     if not is_slot_prefix(ck["planes"], SETTINGS["planes"]):
         wrong["planes"] = (ck["planes"], SETTINGS["planes"])
     if wrong:

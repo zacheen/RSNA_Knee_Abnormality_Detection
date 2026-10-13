@@ -27,7 +27,8 @@ from report_labels import load_labels as load_report_labels  # noqa: E402
 def _check_cache(d: Path, meta: pd.DataFrame):
     """Refuse a cache built with other settings than this run's, because the checkpoint records this run's settings.
 
-    crop_fg cannot be seen in the array, so meta.csv is the only evidence. Older caches lack that column and only get the shape check.
+    crop_fg, crop_mm and band cannot be seen in the array, so meta.csv is the only evidence. Caches without crop_fg skip
+    that check, and without crop_mm or band they count as 0 and the whole stack.
     """
     if "crop_fg" in meta and bool(meta.crop_fg.iloc[0]) != CROP_FG:
         raise SystemExit(f"{d} was built with crop_fg={bool(meta.crop_fg.iloc[0])}, this run has {CROP_FG}")
@@ -132,11 +133,14 @@ def main():
     dl_va = DataLoader(CacheDataset(val_ids, paths, present, gt, False), batch_size=args.bs,
                        num_workers=args.workers) if val_ids else None
 
-    window_args = {"crop": args.crop, "train_windows": args.train_windows}
     if args.arch == "windows":
-        model = WindowNet(args.backbone, pretrained=True, n_slots=len(PLANES), **window_args).to(device)
+        if args.pool != "attn":
+            raise SystemExit("--pool applies to --arch slices only, WindowNet has its own per-finding attention")
+        model = WindowNet(args.backbone, pretrained=True, n_slots=len(PLANES), crop=args.crop,
+                          train_windows=args.train_windows, dropout=args.dropout).to(device)
     else:
         model = KneeNet(args.backbone, pretrained=True, dropout=args.dropout, pool=args.pool, n_slots=len(PLANES)).to(device)
+    window_args = getattr(model, "config", {})
     enc = list(model.encoder.parameters())
     enc_ids = {id(t) for t in enc}
     rest = [t for t in model.parameters() if id(t) not in enc_ids]

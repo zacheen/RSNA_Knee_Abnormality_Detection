@@ -1,0 +1,11 @@
+# Cache v4 for WindowNet jobs. Copy over cache_kernels.txt on Drive once every rsna-knee-build-cache-v4-s* kernel has finished.
+# The env lines must match kaggle_kernels/common/v4_env.py, and train.py refuses a cache built with other values.
+slots 5
+env RSNA_N_SLICES=20
+env RSNA_IMG_SIZE=320
+env RSNA_CROP_MM=128
+env RSNA_BAND=0.02,0.98
+rsna-knee-build-cache-v4-s0
+rsna-knee-build-cache-v4-s1
+rsna-knee-build-cache-v4-s2
+rsna-knee-build-cache-v4-s3

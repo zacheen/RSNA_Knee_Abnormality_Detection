@@ -61,8 +61,7 @@ def _crop_square(slices: list) -> list:
 def _crop_mm(img: np.ndarray, ds, crop_mm: float) -> np.ndarray:
     """Square crop of crop_mm around the slice centre, padded with the slice minimum where the field of view is smaller.
 
-    Fixing millimetres instead of pixels gives every scanner the same anatomical scale, which pixel spacings that
-    differ 3x across sites otherwise break.
+    Millimetres rather than pixels keep the anatomical scale equal across scanners, whose pixel spacings differ up to 3x.
     """
     spacing = getattr(ds, "PixelSpacing", None)
     row_mm, col_mm = (float(spacing[0]), float(spacing[1])) if spacing is not None else (1.0, 1.0)

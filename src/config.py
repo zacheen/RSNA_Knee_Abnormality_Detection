@@ -31,7 +31,7 @@ N_SLICES = int(os.environ.get("RSNA_N_SLICES", "32"))
 IMG_SIZE = int(os.environ.get("RSNA_IMG_SIZE", "192"))
 # Crop to foreground and pad to square before resizing. Off by default so caches built without it stay valid.
 CROP_FG = os.environ.get("RSNA_CROP_FG", "0") == "1"
-# Physical centre crop in mm (0 is off) and the fraction of each stack the slices are spread over, from cache v4 on.
+# Physical centre crop in mm (0 is off, overrides CROP_FG) and the fraction of each stack the slices are spread over.
 CROP_MM = float(os.environ.get("RSNA_CROP_MM", "0"))
 BAND = [float(x) for x in os.environ.get("RSNA_BAND", "0,1").split(",")]
 # Saved next to the weights by train.py and compared by infer.py. One dict, so a key cannot exist on only one side.

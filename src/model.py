@@ -68,8 +68,7 @@ POOLS = {"attn": AttnPool, "conv": DepthConvPool}
 
 
 def load_checkpoint(path) -> dict:
-    """Read a checkpoint, defaulting the keys older ones lack (they were uncropped, 3-slot, used attn pooling, spread
-    slices over the whole stack and were the per-slice KneeNet)."""
+    """Read a checkpoint, defaulting the keys older ones lack (uncropped, 3-slot, attn pooling, whole-stack slices, KneeNet)."""
     return {"crop_fg": False, "pool": "attn", "planes": ALL_SLOTS[:3], "crop_mm": 0.0, "band": [0.0, 1.0],
             "arch": "slices", **torch.load(path, map_location="cpu")}
 
@@ -96,18 +95,20 @@ class WindowNet(nn.Module):
     STD = (0.229, 0.224, 0.225)
 
     def __init__(self, backbone: str = "convnext_tiny", pretrained: bool = True, n_slots: int = 5, crop: int = 288,
-                 train_windows: int = 32, dim: int = 384, chunk: int = 64):
+                 train_windows: int = 32, dim: int = 384, chunk: int = 64, dropout: float = 0.2):
         super().__init__()
         self.encoder = timm.create_model(backbone, pretrained=pretrained, in_chans=3, num_classes=0)
         f = self.encoder.num_features
         self.n_slots, self.crop, self.train_windows, self.chunk = n_slots, crop, train_windows, chunk
+        # Everything build_from_checkpoint needs besides backbone and n_slots. dim fixes state_dict shapes.
+        self.config = {"crop": crop, "train_windows": train_windows, "dim": dim, "chunk": chunk, "dropout": dropout}
         self.proj = nn.Sequential(nn.Linear(f, dim), nn.LayerNorm(dim))
         self.slot_emb = nn.Embedding(n_slots, dim)
         self.pos_emb = nn.Linear(1, dim)
         nn.init.zeros_(self.slot_emb.weight)
         nn.init.zeros_(self.pos_emb.weight)
         nn.init.zeros_(self.pos_emb.bias)
-        self.score = nn.Sequential(nn.Linear(dim, 256), nn.Tanh(), nn.Dropout(0.2), nn.Linear(256, len(LABELS)))
+        self.score = nn.Sequential(nn.Linear(dim, 256), nn.Tanh(), nn.Dropout(dropout), nn.Linear(256, len(LABELS)))
         self.cls_w = nn.Parameter(torch.randn(len(LABELS), dim) * dim ** -0.5)
         self.cls_b = nn.Parameter(torch.zeros(len(LABELS)))
         self.register_buffer("mean", torch.tensor(self.MEAN).view(1, 3, 1, 1), persistent=False)
@@ -119,7 +120,7 @@ class WindowNet(nn.Module):
         b, p, d, h, w = vol.shape
         c = min(self.crop, h, w)
         if self.training:
-            y0, x0 = np.random.randint(0, h - c + 1), np.random.randint(0, w - c + 1)
+            y0, x0 = (int(torch.randint(0, n - c + 1, ())) for n in (h, w))
         else:
             y0, x0 = (h - c) // 2, (w - c) // 2
         vol = vol[..., y0:y0 + c, x0:x0 + c]
