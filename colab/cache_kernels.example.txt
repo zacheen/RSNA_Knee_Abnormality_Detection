@@ -1,0 +1,4 @@
+# Kaggle kernel slugs whose cache zips the runner downloads, plus the `slots` line, the RSNA_SLOTS value they were built with.
+slots 5
+rsna-knee-build-cache-v3-s0
+rsna-knee-build-cache-v3-s1

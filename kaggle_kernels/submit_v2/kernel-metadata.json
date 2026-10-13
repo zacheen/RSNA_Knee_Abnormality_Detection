@@ -1,0 +1,13 @@
+{
+  "id": "zacheenoao/rsna-knee-submit-v2",
+  "title": "rsna-knee-submit-v2",
+  "code_file": "run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "dataset_sources": ["zacheenoao/rsna-knee-assets"],
+  "competition_sources": ["rsna-knee-abnormality-detection"],
+  "kernel_sources": ["zacheenoao/rsna-knee-train-v2"]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "zacheenoao/rsna-knee-export-subset",
+  "title": "rsna-knee-export-subset",
+  "code_file": "export_subset.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": [],
+  "competition_sources": ["rsna-knee-abnormality-detection"],
+  "kernel_sources": []
+}

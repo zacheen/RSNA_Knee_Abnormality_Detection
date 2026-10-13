@@ -1,0 +1,13 @@
+{
+  "id": "zacheenoao/rsna-knee-submit-ens",
+  "title": "rsna-knee-submit-ens",
+  "code_file": "run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "dataset_sources": ["zacheenoao/rsna-knee-assets", "zacheenoao/rsna-knee-local-models"],
+  "competition_sources": ["rsna-knee-abnormality-detection"],
+  "kernel_sources": ["zacheenoao/rsna-knee-train-1b", "zacheenoao/rsna-knee-train", "zacheenoao/rsna-knee-train-5a", "zacheenoao/rsna-knee-train-5b", "zacheenoao/rsna-knee-train-1c", "zacheenoao/rsna-knee-train-5c"]
+}

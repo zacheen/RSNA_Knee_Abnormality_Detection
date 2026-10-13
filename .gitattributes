@@ -1,0 +1,3 @@
+# Keep LF on checkout. bash rejects CRLF scripts, and the Kaggle and Colab copies run on Linux.
+* text=auto eol=lf
+*.ipynb text eol=lf

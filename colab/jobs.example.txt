@@ -1,0 +1,3 @@
+# One job per line, "<name> <labels file> <seed> [extra train.py flags]", the same format as tools/train_local_queue.sh.
+# A job whose runs/<name>/DONE exists is skipped, so finished jobs can stay listed. Lines starting with # are ignored.
+C1 report_labels_v2s.jsonl 0 --pool conv
