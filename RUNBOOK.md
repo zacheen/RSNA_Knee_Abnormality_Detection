@@ -578,6 +578,8 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | P1 | 2026-10-14 | 本機 GPU。W8 的設定，標籤換成偽標籤 `report_labels_pseudo1.jsonl`。偽標籤是混合標籤與 W 五成員對訓練資料預測的各半平均，用 `tools/predict_cache.py` 產生。這些預測是 in-sample 的，作用接近平滑過的標籤。偽標籤本身對 58 筆 GT 是 0.9299，混合標籤 0.8922，五成員預測 0.9181 | 0.9136，W8 是 0.9159，差距在雜訊內。前幾個 epoch 學得較快，第 3 個 epoch 0.883 對 W8 的 0.842。加進五成員是 0.9190 | 放進 `rsna-knee-window-models`，排進排行榜探測 |
 | P2 | 2026-10-14 | 本機 GPU。W2 的設定（resnet34），標籤換成同一份偽標籤 | 0.9043，W2 是 0.9071。加進五成員是 0.9161，比五成員的 0.9181 略低。偽標籤在 58 筆 GT 上對兩種骨幹都沒有幫助 | 沒有上傳 |
 | W13 | 2026-10-14 | 本機 GPU。W8 的設定改成公開 0.949 模型的訓練方式，梯度累積 8 步讓有效 batch 從 2 變成 16，head lr 2e-3，骨幹 lr 1e-4，wd 0.05，16 個 epoch。兩邊的切片數（約 100）與視野（約 115 mm）已經相同，剩下的差異主要在 batch 與訓練長度 | 訓練中，02:53 開始 | |
+| W11 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w11`。W8 的設定，骨幹改成 efficientnet_b2。每個 epoch 約 17 分鐘，`/kaggle/tmp` 解壓 cache v4 後還有約 1 TB 可用 | 0.9092，沒有比 b0 好。加進五成員是 0.9191（五成員 0.9181），在雜訊內，所以不再往更大的骨幹試 | 放進 `rsna-knee-window-models` |
+| 排行榜探測 | 2026-10-14 | 單一成員各提交一次，用約 400 筆 public test 回答 58 筆 GT 分不出的問題。`tools/probe_submit.sh` 送出。CPU 推論一個成員要 21.9 小時，所以探測要用 GPU | W8 ref 57178887、W2 ref 57178966、P1 ref 57179153，等分數 | |
 
 **第一次拿到排行榜分數（2026-10-13）。** 完成身分驗證後，`rsna-knee-submit-ens` 第 3 版（六個 attention 成員）public 是 0.882，第 5 版（再加 L4 與 L5）是 **0.888**。兩者在 58 筆 GT 上的差距方向相同，所以 58 筆 GT 可以當作排行榜的參考。排行榜第 1 名是 0.966，第 29 名是 0.961，差距約 0.07。
 
