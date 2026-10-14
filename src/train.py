@@ -8,6 +8,7 @@ Usage
 """
 import argparse
 import glob
+import hashlib
 import sys
 import time
 from pathlib import Path
@@ -103,6 +104,8 @@ def main():
     ap.add_argument("--crop", type=int, default=288, help="windows only, square crop taken from the cached slices")
     ap.add_argument("--train-windows", type=int, default=32, help="windows only, windows encoded per study per step")
     ap.add_argument("--resize", type=int, default=0, help="windows only, upsample each crop to this size before the encoder")
+    ap.add_argument("--folds", type=int, default=0, help="split the report-labeled studies into this many folds (0 is off)")
+    ap.add_argument("--fold", type=int, default=0, help="the fold held out of training and predicted into <out>_oof.csv")
     ap.add_argument("--accum", type=int, default=1, help="batches whose gradients add up before each optimizer step")
     ap.add_argument("--avg-last", type=int, default=3, help="keep this many final epochs and average their predictions")
     ap.add_argument("--workers", type=int, default=2)
@@ -117,20 +120,30 @@ def main():
         ap.error("--avg-last must be at least 1")
     if args.accum < 1:
         ap.error("--accum must be at least 1")
+    if args.folds and not 0 <= args.fold < args.folds:
+        ap.error("--fold must be in [0, --folds)")
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     paths, present = index_cache(args.cache)
     rep = load_report_labels(args.labels)
-    gt = pd.read_csv(DATA_ROOT / "train.csv").set_index("StudyInstanceUID")
-    gt = gt[gt[LABELS].notna().all(axis=1)][LABELS].astype(np.float32)
+    tr = pd.read_csv(DATA_ROOT / "train.csv").set_index("StudyInstanceUID")
+    gt = tr[tr[LABELS].notna().all(axis=1)][LABELS].astype(np.float32)
 
     gt_ids = set(gt.index)
     train_ids = [u for u in paths if u in rep.index and (args.train_on_gt or u not in gt_ids)]
     val_ids = [u for u in paths if u in gt_ids]
+    hold_ids = []
+    if args.folds:
+        # Folds follow a hash of the report text, so the 183 studies that share a report with another one land in the
+        # same fold and the held-out prediction never comes from a model that saw the same report.
+        fold_of = {u: int(hashlib.md5(str(tr.at[u, "Report"]).strip().lower().encode()).hexdigest(), 16) % args.folds
+                   for u in train_ids}
+        hold_ids = [u for u in train_ids if fold_of[u] == args.fold]
+        train_ids = [u for u in train_ids if fold_of[u] != args.fold]
     gpu = torch.cuda.get_device_name(0) if device.type == "cuda" else "cpu"
-    print(f"device={gpu} cached={len(paths)} train={len(train_ids)} val(gt)={len(val_ids)}", flush=True)
+    print(f"device={gpu} cached={len(paths)} train={len(train_ids)} val(gt)={len(val_ids)} held out={len(hold_ids)}", flush=True)
     if not train_ids:
         raise SystemExit("no training studies: need cached studies that also have report labels")
 
@@ -138,6 +151,8 @@ def main():
                        batch_size=args.bs, shuffle=True, num_workers=args.workers, drop_last=len(train_ids) > args.bs)
     dl_va = DataLoader(CacheDataset(val_ids, paths, present, gt, False), batch_size=args.bs,
                        num_workers=args.workers) if val_ids else None
+    dl_hold = DataLoader(CacheDataset(hold_ids, paths, present, rep.astype(np.float32), False), batch_size=args.bs,
+                         num_workers=args.workers) if hold_ids else None
 
     if args.arch == "windows":
         if args.pool != "attn":
@@ -164,12 +179,12 @@ def main():
     args.out.parent.mkdir(parents=True, exist_ok=True)
     # Not named after --out, because the submit kernel globs *kneenet*.pt and would load it as a model.
     state_path = args.out.parent / "resume_state.pt"
-    start_ep, y_va = 0, None
+    start_ep, y_va, p_hold = 0, None, []  # p_hold holds the held-out predictions of the epochs that are averaged
     if args.resume and state_path.exists():
         st = torch.load(state_path, map_location="cpu", weights_only=False)  # rng states must stay on the CPU
         for obj, key in [(model, "model"), (opt, "opt"), (sched, "sched"), (scaler, "scaler")]:
             obj.load_state_dict(st[key])
-        start_ep, y_va = st["epoch"], st["y_va"]
+        start_ep, y_va, p_hold = st["epoch"], st["y_va"], st.get("p_hold", [])
         kept = [(Path(c), pv) for c, pv in st["kept"]]
         torch.set_rng_state(st["torch_rng"])
         np.random.set_state(st["np_rng"])
@@ -200,6 +215,9 @@ def main():
         if dl_va:
             y_va, p_va = predict(model, dl_va, device)
             msg += f" val_macro_auc={macro_auc(y_va, p_va)[0]:.4f}"
+        if dl_hold and ep + 1 > args.epochs - args.avg_last:
+            p_hold.append(predict(model, dl_hold, device)[1])
+            msg += f" held-out predicted ({len(hold_ids)})"
         print(msg, flush=True)
         ck = args.out.with_name(f"{args.out.stem}_ep{ep + 1:02d}{args.out.suffix}")
         torch.save({"state_dict": model.state_dict(), "backbone": args.backbone, "pool": args.pool, "arch": args.arch,
@@ -209,7 +227,7 @@ def main():
             kept.pop(0)[0].unlink()  # the submit kernel averages every kneenet*.pt it finds, so evicted epochs must not linger
         if args.resume:
             torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
-                        "scaler": scaler.state_dict(), "epoch": ep + 1, "y_va": y_va, "kept": [(str(c), pv) for c, pv in kept],
+                        "scaler": scaler.state_dict(), "epoch": ep + 1, "y_va": y_va, "p_hold": p_hold, "kept": [(str(c), pv) for c, pv in kept],
                         "torch_rng": torch.get_rng_state(), "np_rng": np.random.get_state()}, state_path)
         # A kernel killed at Kaggle's 12 h cap saves no output at all, so stop while the next epoch still fits.
         epoch_s = time.time() - t0
@@ -220,6 +238,11 @@ def main():
         score, per = macro_auc(y_va, np.mean([pv for _, pv in kept], axis=0))
         print(f"averaged last {len(kept)} epochs: val_macro_auc={score:.4f}", {k: round(v, 3) for k, v in per.items()})
     print("saved", [str(c) for c, _ in kept])
+    if p_hold:
+        oof = args.out.with_name(f"{args.out.stem}_oof.csv")
+        pd.DataFrame(np.mean(p_hold, axis=0), index=pd.Index(hold_ids, name="StudyInstanceUID"),
+                     columns=LABELS).reset_index().to_csv(oof, index=False, lineterminator="\n")
+        print(f"wrote {oof} with {len(hold_ids)} held-out studies averaged over {len(p_hold)} epochs")
     state_path.unlink(missing_ok=True)  # a finished run must not be resumed by a rerun with the same --out
 
 
