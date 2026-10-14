@@ -9,7 +9,8 @@ set -uo pipefail
 if [ -z "${QUEUE_COPY:-}" ]; then
   tmp=$(mktemp); cp "$0" "$tmp"; cd "$(dirname "$0")/.."; QUEUE_COPY=1 exec bash "$tmp" "$@"
 fi
-export PYTHONIOENCODING=utf-8 HF_HUB_DISABLE_SYMLINKS_WARNING=1
+# numpy's Intel Fortran runtime aborts on a console close event ("forrtl error 200"), which killed one run after epoch 1.
+export PYTHONIOENCODING=utf-8 HF_HUB_DISABLE_SYMLINKS_WARNING=1 FOR_DISABLE_CONSOLE_CTRL_HANDLER=1
 CACHE=${CACHE:-data/work/cache/train_s0of1}
 for job in "$@"; do
   read -r name labels seed extra <<< "$job"
