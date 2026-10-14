@@ -583,7 +583,7 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | W11 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w11`。W8 的設定，骨幹改成 efficientnet_b2。每個 epoch 約 17 分鐘，`/kaggle/tmp` 解壓 cache v4 後還有約 1 TB 可用 | 0.9092，沒有比 b0 好。加進五成員是 0.9191（五成員 0.9181），在雜訊內，所以不再往更大的骨幹試 | 放進 `rsna-knee-window-models` |
 | 排行榜探測 | 2026-10-14 | 單一成員各提交一次，用約 400 筆 public test 回答 58 筆 GT 分不出的問題。`tools/probe_submit.sh` 送出。CPU 推論一個成員要 21.9 小時，所以探測要用 GPU | W8 單獨 public **0.938**，P1 單獨 **0.939**，W2（resnet34）單獨 **0.920**，五成員 0.942。三個結論。第一，efficientnet_b0 一個模型就接近整個 ensemble。第二，resnet34 在排行榜上比 b0 低 0.018，在 58 筆 GT 上只低 0.009，58 筆 GT 會低估骨幹的差距。第三，偽標籤在排行榜上與 W8 相同，沒有害處也沒有明顯好處 | 下一個提交改成只用 efficientnet |
 | W12 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w12`。W8 的設定，訓練時不再隨機裁成 288，直接用 320 的整個畫面，每步 48 個 window。每個 epoch 約 18 分鐘 | 0.9085，與 W8 在雜訊內。訓練 loss 比 W8 低（0.404 對 0.432），可能較容易過擬合 | 放進 `rsna-knee-window-models` |
-| efficientnet 五成員 | 2026-10-14 | W8、W9、P1、W11、W12，15 個 checkpoint，拿掉 resnet34 與 convnext | 58 筆 GT 上 W8、W9、P1、W11 是 0.9173，與原本五成員的 0.9181 相同 | 今天最後一次提交，`rsna-knee-submit-probe` |
+| efficientnet 五成員 | 2026-10-14 | W8、W9、P1、W11、W12，15 個 checkpoint，拿掉 resnet34 與 convnext | 58 筆 GT 上 W8、W9、P1、W11 是 0.9173，與原本五成員的 0.9181 相同 | `rsna-knee-submit-probe` 第 5 版，ref 57180317。public **0.943**，目前最好，原本含 resnet34 與 convnext 的五成員是 0.942。之後的 ensemble 以 efficientnet 為主 |
 
 **第一次拿到排行榜分數（2026-10-13）。** 完成身分驗證後，`rsna-knee-submit-ens` 第 3 版（六個 attention 成員）public 是 0.882，第 5 版（再加 L4 與 L5）是 **0.888**。兩者在 58 筆 GT 上的差距方向相同，所以 58 筆 GT 可以當作排行榜的參考。排行榜第 1 名是 0.966，第 29 名是 0.961，差距約 0.07。
 
