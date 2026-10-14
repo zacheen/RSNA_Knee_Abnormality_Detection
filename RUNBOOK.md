@@ -580,6 +580,9 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | W13 | 2026-10-14 | 本機 GPU。W8 的設定改成公開 0.949 模型的訓練方式，梯度累積 8 步讓有效 batch 從 2 變成 16，head lr 2e-3，骨幹 lr 1e-4，wd 0.05，16 個 epoch。兩邊的切片數（約 100）與視野（約 115 mm）已經相同，剩下的差異主要在 batch 與訓練長度 | 0.9022，比 W8 的 0.9159 低。大 batch 與較長的訓練沒有幫助，之後維持 batch 2 的設定 | 沒有上傳 |
 | 五裁切 TTA | 2026-10-14 | 不重新訓練，推論時把 volume 上下左右平移 16 px 再取中央 288，與原本的中央裁切共 5 個位置平均 | W8 0.9159 變 0.9167，W9 0.9096 變 0.9070，P1 0.9136 變 0.9169，三者 ensemble 0.9154 變 0.9164。方向不一致，又要 5 倍的推論時間，所以不採用 | |
 | W14 | 2026-10-14 | 本機 GPU。W8 的設定，seed 3 | 訓練中，05:20 開始 | |
+| W4 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w4`。W8 的設定，標籤換成我們自己的 v2s。每個 epoch 約 11.5 分鐘 | 0.9100。efficientnet 五成員在 58 筆 GT 上是 0.9202（排行榜 0.943），加上 W4 是 0.9208 | 放進 `rsna-knee-window-models` |
+| W5 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w5`。W8 的設定，seed 2 | 0.9148 | 同上 |
+| W15、W16 | 2026-10-14 | Kaggle T4。W15 是 P1 的設定（偽標籤）seed 1，W16 是 W4 的設定（v2s）seed 1 | 訓練中 | |
 | W11 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w11`。W8 的設定，骨幹改成 efficientnet_b2。每個 epoch 約 17 分鐘，`/kaggle/tmp` 解壓 cache v4 後還有約 1 TB 可用 | 0.9092，沒有比 b0 好。加進五成員是 0.9191（五成員 0.9181），在雜訊內，所以不再往更大的骨幹試 | 放進 `rsna-knee-window-models` |
 | 排行榜探測 | 2026-10-14 | 單一成員各提交一次，用約 400 筆 public test 回答 58 筆 GT 分不出的問題。`tools/probe_submit.sh` 送出。CPU 推論一個成員要 21.9 小時，所以探測要用 GPU | W8 單獨 public **0.938**，P1 單獨 **0.939**，W2（resnet34）單獨 **0.920**，五成員 0.942。三個結論。第一，efficientnet_b0 一個模型就接近整個 ensemble。第二，resnet34 在排行榜上比 b0 低 0.018，在 58 筆 GT 上只低 0.009，58 筆 GT 會低估骨幹的差距。第三，偽標籤在排行榜上與 W8 相同，沒有害處也沒有明顯好處 | 下一個提交改成只用 efficientnet |
 | W12 | 2026-10-14 | Kaggle T4，`rsna-knee-train-w12`。W8 的設定，訓練時不再隨機裁成 288，直接用 320 的整個畫面，每步 48 個 window。每個 epoch 約 18 分鐘 | 0.9085，與 W8 在雜訊內。訓練 loss 比 W8 低（0.404 對 0.432），可能較容易過擬合 | 放進 `rsna-knee-window-models` |
