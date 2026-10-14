@@ -382,6 +382,7 @@ bash tools/sync_colab.sh
 - `runner_A.ipynb` 讀 `jobs_A.txt`，`runner_B.ipynb` 讀 `jobs_B.txt`，兩個可以同時開，不會搶同一個工作。每行是 `<名稱> <標籤檔> <seed> [train.py 參數]`，有 `runs/<名稱>/DONE` 的工作會被跳過。
 - `cache_kernels.txt` 決定下載哪一份 cache。cache v4 需要的切片數、尺寸、裁切與範圍以 `env KEY=VALUE` 行寫在裡面，train.py 會拒絕設定不符的 cache。
 - runner 用 `--resume` 訓練，checkpoint 與 `resume_state.pt` 每個 epoch 直接寫進 Drive 的 `runs/<名稱>/`。runtime 斷線後重新全部執行，未完成的工作會從最後一個完成的 epoch 接著跑，最多損失一個 epoch。
+- cache 的 zip 第一次從 Kaggle 下載後，會複製一份到 Drive 的 `cache_zips/<kernel>/`，旁邊的 `.ok` 記錄檔案大小。之後的 session 直接從 Drive 複製，不必再花約 30 分鐘從會中途斷線的 Kaggle 下載。Drive 上的大小和 `.ok` 對不上時，會改回從 Kaggle 下載。cache kernel 重建過的話，要手動刪掉 `cache_zips` 底下那個 kernel 的資料夾。
 - runner 最後一格在工作做完後釋放 runtime，所以整晚放著也不會一直耗運算單元。前面的格子出錯時不會跑到最後一格，這時 runtime 不會自動釋放。
 - GPU 選 L4。A100 的運算單元耗用約是 L4 的 2 到 3 倍，T4 約慢一倍。沒有可用 GPU 時 Colab 會問要不要用 CPU，要選取消。
 
