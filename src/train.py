@@ -108,6 +108,8 @@ def main():
     ap.add_argument("--out", type=Path, default=WORK / "models" / "kneenet.pt")
     ap.add_argument("--budget-hours", type=float, default=11.0, help="wall-clock cap for the training loop")
     ap.add_argument("--seed", type=int, default=0, help="init, shuffle order and augmentation draws")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from resume_state.pt next to --out when it exists, so a dropped Colab runtime loses one epoch")
     args = ap.parse_args()
     if args.avg_last < 1:
         ap.error("--avg-last must be at least 1")
@@ -156,10 +158,23 @@ def main():
     kept = []  # (checkpoint path, validation probabilities), oldest first
     t_start = time.time()
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    # Epoch files left by an earlier run would be globbed and averaged in by the submit kernel, silently mixing two models.
-    for stale in [args.out, *args.out.parent.glob(f"{args.out.stem}_ep*{args.out.suffix}")]:
-        stale.unlink(missing_ok=True)
-    for ep in range(args.epochs):
+    # Not named after --out, because the submit kernel globs *kneenet*.pt and would load it as a model.
+    state_path = args.out.parent / "resume_state.pt"
+    start_ep, y_va = 0, None
+    if args.resume and state_path.exists():
+        st = torch.load(state_path, map_location="cpu", weights_only=False)  # rng states must stay on the CPU
+        for obj, key in [(model, "model"), (opt, "opt"), (sched, "sched"), (scaler, "scaler")]:
+            obj.load_state_dict(st[key])
+        start_ep, y_va = st["epoch"], st["y_va"]
+        kept = [(Path(c), pv) for c, pv in st["kept"]]
+        torch.set_rng_state(st["torch_rng"])
+        np.random.set_state(st["np_rng"])
+        print(f"resumed after epoch {start_ep}", flush=True)
+    else:
+        # Epoch files left by an earlier run would be globbed and averaged in by the submit kernel, silently mixing two models.
+        for stale in [args.out, state_path, *args.out.parent.glob(f"{args.out.stem}_ep*{args.out.suffix}")]:
+            stale.unlink(missing_ok=True)
+    for ep in range(start_ep, args.epochs):
         model.train()
         t0, tot, n = time.time(), 0.0, 0
         for vol, pres, y in dl_tr:
@@ -186,6 +201,10 @@ def main():
         kept.append((ck, p_va))
         if len(kept) > args.avg_last:
             kept.pop(0)[0].unlink()  # the submit kernel averages every kneenet*.pt it finds, so evicted epochs must not linger
+        if args.resume:
+            torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "sched": sched.state_dict(),
+                        "scaler": scaler.state_dict(), "epoch": ep + 1, "y_va": y_va, "kept": [(str(c), pv) for c, pv in kept],
+                        "torch_rng": torch.get_rng_state(), "np_rng": np.random.get_state()}, state_path)
         # A kernel killed at Kaggle's 12 h cap saves no output at all, so stop while the next epoch still fits.
         epoch_s = time.time() - t0
         if time.time() - t_start + epoch_s > args.budget_hours * 3600 and ep + 1 < args.epochs:
@@ -195,6 +214,7 @@ def main():
         score, per = macro_auc(y_va, np.mean([pv for _, pv in kept], axis=0))
         print(f"averaged last {len(kept)} epochs: val_macro_auc={score:.4f}", {k: round(v, 3) for k, v in per.items()})
     print("saved", [str(c) for c, _ in kept])
+    state_path.unlink(missing_ok=True)  # a finished run must not be resumed by a rerun with the same --out
 
 
 if __name__ == "__main__":
