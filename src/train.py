@@ -115,6 +115,8 @@ def main():
     args = ap.parse_args()
     if args.avg_last < 1:
         ap.error("--avg-last must be at least 1")
+    if args.accum < 1:
+        ap.error("--accum must be at least 1")
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
