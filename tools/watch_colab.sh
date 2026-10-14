@@ -9,6 +9,7 @@ stall=${STALL_MIN:-40}
 notify() {
   powershell.exe -NoProfile -File "D:\dont_move\git_save\Daily_Task\shared\notify.ps1" -Message "$1" -Title "RSNA Knee 警告" -Category "RSNA Knee" >/dev/null
 }
+t0=$(date +%s)
 while :; do
   for job in "$@"; do
     d="$runs/$job"
@@ -17,7 +18,8 @@ while :; do
       exit 0
     fi
     if [ -f "$d/train.log" ]; then
-      age=$(( ($(date +%s) - $(stat -c %Y "$d/train.log")) / 60 ))
+      m=$(stat -c %Y "$d/train.log"); [ "$m" -gt "$t0" ] || m=$t0  # a log already stale when watching starts gets a fresh grace period
+      age=$(( ($(date +%s) - m) / 60 ))
       if [ "$age" -ge "$stall" ]; then
         echo "$(date +%H:%M) stalled $job, train.log untouched for $age min, last line $(tail -1 "$d/train.log" | cut -c1-80)"
         notify "Colab 的 $job 已經 $age 分鐘沒有進度，runtime 可能斷線了，請打開 Colab 看一下"
