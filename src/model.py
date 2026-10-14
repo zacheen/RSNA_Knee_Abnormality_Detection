@@ -95,13 +95,14 @@ class WindowNet(nn.Module):
     STD = (0.229, 0.224, 0.225)
 
     def __init__(self, backbone: str = "convnext_tiny", pretrained: bool = True, n_slots: int = 5, crop: int = 288,
-                 train_windows: int = 32, dim: int = 384, chunk: int = 64, dropout: float = 0.2):
+                 train_windows: int = 32, dim: int = 384, chunk: int = 64, dropout: float = 0.2, resize: int = 0):
         super().__init__()
         self.encoder = timm.create_model(backbone, pretrained=pretrained, in_chans=3, num_classes=0)
         f = self.encoder.num_features
-        self.n_slots, self.crop, self.train_windows, self.chunk = n_slots, crop, train_windows, chunk
+        self.n_slots, self.crop, self.train_windows, self.chunk, self.resize = n_slots, crop, train_windows, chunk, resize
         # Everything build_from_checkpoint needs besides backbone and n_slots. dim fixes state_dict shapes.
-        self.config = {"crop": crop, "train_windows": train_windows, "dim": dim, "chunk": chunk, "dropout": dropout}
+        self.config = {"crop": crop, "train_windows": train_windows, "dim": dim, "chunk": chunk, "dropout": dropout,
+                       "resize": resize}
         self.proj = nn.Sequential(nn.Linear(f, dim), nn.LayerNorm(dim))
         self.slot_emb = nn.Embedding(n_slots, dim)
         self.pos_emb = nn.Linear(1, dim)
@@ -132,13 +133,20 @@ class WindowNet(nn.Module):
         idx = centre[:, None] + torch.arange(-1, 2, device=vol.device)  # [W, 3]
         win = vol[:, slot[:, None], idx]  # [B, W, 3, c, c]
         x = (win.reshape(-1, 3, c, c) - self.mean) / self.std
-        feats = torch.cat([self.encoder(x[i:i + self.chunk]) for i in range(0, len(x), self.chunk)])
+        feats = torch.cat([self.encoder(self._fit(x[i:i + self.chunk])) for i in range(0, len(x), self.chunk)])
         tok = self.proj(feats.reshape(b, len(slot), -1)) + self.slot_emb(slot) + self.pos_emb((centre / (d - 1))[:, None].to(feats.dtype))
         valid = present[:, slot]  # [B, W]
         a = self.score(tok).float().masked_fill(~valid[..., None], float("-inf"))
         a = torch.nan_to_num(torch.softmax(a, dim=1))  # a study with no slot at all gets zero weights, not NaN
         pooled = torch.einsum("bwk,bwd->bkd", a, tok.float())
         return (pooled * self.cls_w).sum(-1) + self.cls_b
+
+    def _fit(self, x):
+        # Upsampling adds no detail, but a CNN's feature maps grow with the input, which small structures such as a
+        # meniscal tear can use. Done per chunk, so only one chunk is held at the larger size.
+        if not self.resize or self.resize == x.shape[-1]:
+            return x
+        return nn.functional.interpolate(x, size=(self.resize, self.resize), mode="bilinear", align_corners=False)
 
 
 class KneeNet(nn.Module):

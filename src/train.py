@@ -102,6 +102,7 @@ def main():
                     help="windows encodes 3-slice RGB windows with per-finding attention, see WindowNet")
     ap.add_argument("--crop", type=int, default=288, help="windows only, square crop taken from the cached slices")
     ap.add_argument("--train-windows", type=int, default=32, help="windows only, windows encoded per study per step")
+    ap.add_argument("--resize", type=int, default=0, help="windows only, upsample each crop to this size before the encoder")
     ap.add_argument("--accum", type=int, default=1, help="batches whose gradients add up before each optimizer step")
     ap.add_argument("--avg-last", type=int, default=3, help="keep this many final epochs and average their predictions")
     ap.add_argument("--workers", type=int, default=2)
@@ -140,7 +141,7 @@ def main():
         if args.pool != "attn":
             raise SystemExit("--pool applies to --arch slices only, WindowNet has its own per-finding attention")
         model = WindowNet(args.backbone, pretrained=True, n_slots=len(PLANES), crop=args.crop,
-                          train_windows=args.train_windows, dropout=args.dropout).to(device)
+                          train_windows=args.train_windows, dropout=args.dropout, resize=args.resize).to(device)
     else:
         model = KneeNet(args.backbone, pretrained=True, dropout=args.dropout, pool=args.pool, n_slots=len(PLANES)).to(device)
     window_args = getattr(model, "config", {})
