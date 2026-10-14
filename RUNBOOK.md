@@ -390,7 +390,13 @@ Colab 的進度由 Claude 自己定時檢查，不靠使用者回報。runner �
 bash tools/watch_colab.sh W4 W5
 ```
 
-需要使用者動手的事，例如打開 runner、選 GPU、重新連線，都要另外跳出 Windows 通知。通知用 `D:\dont_move\git_save\Daily_Task\shared\notify.ps1`，訊息裡不能有雙引號與冒號。
+需要使用者動手的事，例如打開 runner、選 GPU、重新連線，都要另外跳出 Windows 通知。通知用 `tools/notify.ps1`，訊息裡不能有雙引號與冒號。
+- 它以自己註冊的「RSNA Knee」身分送出，所以在通知中心和 Daily_Task 的通知分開，不會被合併成同一組。
+- `-Category` 分成三類，各有自己的標題列。`action` 是需要使用者操作，會停在畫面上直到按掉。`alert` 是失敗或停住。`result` 是訓練完成或分數出來。
+
+```bash
+powershell.exe -NoProfile -File "D:\dont_move\git_save\RSNA_Knee_Abnormality_Detection\tools\notify.ps1" -Message "請打開 runner_A" -Category action
+```
 
 本機訓練用 `tools/train_local_queue.sh`。有三件事要注意。
 - 從 Claude Code 啟動的程序會在 Claude Code 重新啟動時一起結束，所以長時間的訓練改用 WMI 啟動，例如 `data/logs/run_W9.sh`。
