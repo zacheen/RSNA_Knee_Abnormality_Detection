@@ -1,5 +1,5 @@
 # W16. W4 recipe (efficientnet_b0 on v2s labels) with seed 1. Adding W4 lifted the efficientnet ensemble on gold58 from 0.9202 to 0.9208.
-# Cache v4 comes from the four build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
+# Cache v4 comes from the build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
 import os  # noqa: E402
 import shutil  # noqa: E402
 import zipfile  # noqa: E402

@@ -1,6 +1,6 @@
-# Two-family ensemble. The ten KneeNet members run on a cache v3 layout, the efficientnet WindowNet members on cache v4,
-# and the two submissions are merged with fixed shares, so the older family gets a small vote instead of the share its
-# 30 checkpoints would claim. OLD_SHARE is the line that changes between versions.
+# Two-family ensemble. The older KneeNet members run on a cache v3 layout, the efficientnet WindowNet members on cache v4,
+# and the two submissions are merged with fixed shares, so the older family gets a small vote instead of the share their
+# checkpoint count would claim. OLD_SHARE is the line that changes between versions.
 import os  # noqa: E402
 
 OLD_SHARE = 0.2

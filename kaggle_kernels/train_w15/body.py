@@ -1,5 +1,5 @@
 # W15. P1 recipe (efficientnet_b0 on pseudo labels round 1) with seed 1. P1 scored 0.939 public alone, W8 0.938.
-# Cache v4 comes from the four build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
+# Cache v4 comes from the build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
 import os  # noqa: E402
 import shutil  # noqa: E402
 import zipfile  # noqa: E402

@@ -1,5 +1,5 @@
 # W5. W8 recipe (efficientnet_b0, blended labels) with seed 2. b0 is the strongest backbone on the leaderboard, so it gets more members.
-# Cache v4 comes from the four build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
+# Cache v4 comes from the build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
 import os  # noqa: E402
 import shutil  # noqa: E402
 import zipfile  # noqa: E402

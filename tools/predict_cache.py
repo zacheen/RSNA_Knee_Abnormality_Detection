@@ -1,7 +1,7 @@
 """Predict every study of a cache with several checkpoints, each with mirror TTA, and write the mean as a csv.
 
-Each batch is read once and passed through every model, so the cost of reading the cache is paid once rather than
-once per checkpoint. The output has the label-table layout, so tools/blend_labels.py can mix it with report labels.
+Each batch is read once and passed through every model, so cache reading is paid once, not per checkpoint. The output
+has the label-table layout, so tools/blend_labels.py can mix it with report labels.
 The models were trained on these same studies, so their predictions are in-sample and work as smoothed targets, not
 as held-out estimates.
 

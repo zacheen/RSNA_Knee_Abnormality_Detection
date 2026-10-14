@@ -28,10 +28,11 @@ o=data/logs/probe_$(echo "$*" | tr ' ' '_')
 mkdir -p "$o"
 conda run -n rsna_knee kaggle kernels output $k -p "$o" >/dev/null 2>&1
 n=$(grep -ahoE "loaded [0-9]+" "$o"/*.log | grep -oE "[0-9]+")
-# The lower bound is the gate. At 3 studies the upper bound charges model loading to each study, and a 15-checkpoint run
-# that the upper bound projected at 6.02 h finished scoring in under 1.3 h.
+# Gate on the lower bound. At 3 studies the upper bound charges model loading to every study, so it overshoots: one
+# 15-checkpoint run projected 6.02 h by the upper bound and finished scoring in under 1.3 h.
 h=$(grep -ahoE "lower bound [0-9.]+" "$o"/*.log | grep -oE "[0-9.]+$" | tail -1)
 echo "$(date +%H:%M) version $ver $s members=$* loaded=$n projected=$h"
+# Every member ships 3 checkpoints, the last epochs train.py keeps by default (--avg-last 3).
 if [ "$n" = $(( 3 * $# )) ] && [ -s "$o/submission.csv" ] && awk "BEGIN{exit !(${h:-99} < 6)}"; then
   conda run --no-capture-output -n rsna_knee python tools/submit_code.py "$ver" "$msg" $k 2>&1 | tail -1
 else

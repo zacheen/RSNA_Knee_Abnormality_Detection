@@ -1,5 +1,5 @@
 # W4. W8 recipe (efficientnet_b0) on our own v2s report labels instead of the blend, to see whether a different label set adds ensemble diversity.
-# Cache v4 comes from the four build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
+# Cache v4 comes from the build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
 import os  # noqa: E402
 import shutil  # noqa: E402
 import zipfile  # noqa: E402

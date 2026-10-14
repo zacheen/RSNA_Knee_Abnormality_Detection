@@ -1,5 +1,5 @@
-# W11. WindowNet with efficientnet_b2, the larger sibling of the strongest backbone so far (b0, 0.9159), otherwise the W8 recipe.
-# Cache v4 comes from the four build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
+# W11. WindowNet with efficientnet_b2, the larger sibling of the strongest backbone so far (b0), otherwise the W8 recipe.
+# Cache v4 comes from the build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
 import os  # noqa: E402
 import shutil  # noqa: E402
 import zipfile  # noqa: E402

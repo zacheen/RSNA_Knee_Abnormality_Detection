@@ -1,5 +1,5 @@
 # W12. W8 recipe with the whole 320 px cached field (no random 288 crop) and 48 windows per step instead of 32.
-# Cache v4 comes from the four build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
+# Cache v4 comes from the build kernels, unzipped into /kaggle/tmp, which does not count toward the output cap.
 import os  # noqa: E402
 import shutil  # noqa: E402
 import zipfile  # noqa: E402
