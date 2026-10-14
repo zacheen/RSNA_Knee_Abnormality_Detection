@@ -574,7 +574,8 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | W 三成員 | 2026-10-13 | W1、W2、W3 等權 | **0.9110**，舊的十成員是 0.8842。把舊的 11 組平均後以 0 到 0.5 的權重混入，分數都在 0.909 到 0.9135 之間，差距在雜訊內，所以不混入，推論只需要 cache v4 | `rsna-knee-submit-w` 第 1 版，ref 57159249，預估推論 4.4 小時。public **0.939**，十個 KneeNet 成員是 0.893 |
 | W8 | 2026-10-13 | 本機 GPU。W1 的設定，骨幹改成 efficientnet_b0，骨幹 lr 2e-4。每個 epoch 約 9 分鐘，是三種骨幹裡最快的 | **0.9159**，目前最好的單一模型。四個 W 成員是 0.9171，W2 加 W8 是 0.9207，子集差距在雜訊內 | 放進 `rsna-knee-window-models` |
 | W9 | 2026-10-13 | 本機 GPU。W8 的設定，seed 1。第一次執行在第 1 個 epoch 後被 numpy 的 Intel Fortran 程式庫在關閉視窗事件時中止，加上 `FOR_DISABLE_CONSOLE_CTRL_HANDLER=1` 後重跑 | 0.9096 | 同上 |
-| W 五成員 | 2026-10-13 | W1、W2、W3、W8、W9 等權，15 個 checkpoint | **0.9181**，三成員是 0.9110。加 seed 的提升已經變小 | `rsna-knee-submit-w` 第 2 版，ref 57167561，預估推論 1.5 到 6.7 小時 |
+| W 五成員 | 2026-10-13 | W1、W2、W3、W8、W9 等權，15 個 checkpoint | **0.9181**，三成員是 0.9110。加 seed 的提升已經變小 | `rsna-knee-submit-w` 第 2 版，ref 57167561，預估推論 1.5 到 6.7 小時。public **0.942**，三成員是 0.939 |
+| P1 | 2026-10-14 | 本機 GPU。W8 的設定，標籤換成偽標籤 `report_labels_pseudo1.jsonl`。偽標籤是混合標籤與 W 五成員對訓練資料預測的各半平均，用 `tools/predict_cache.py` 產生。這些預測是 in-sample 的，作用接近平滑過的標籤。偽標籤本身對 58 筆 GT 是 0.9299，混合標籤 0.8922，五成員預測 0.9181 | 0.9136，W8 是 0.9159，差距在雜訊內。前幾個 epoch 學得較快，第 3 個 epoch 0.883 對 W8 的 0.842。加進五成員是 0.9190 | 放進 `rsna-knee-window-models`，排進排行榜探測 |
 
 **第一次拿到排行榜分數（2026-10-13）。** 完成身分驗證後，`rsna-knee-submit-ens` 第 3 版（六個 attention 成員）public 是 0.882，第 5 版（再加 L4 與 L5）是 **0.888**。兩者在 58 筆 GT 上的差距方向相同，所以 58 筆 GT 可以當作排行榜的參考。排行榜第 1 名是 0.966，第 29 名是 0.961，差距約 0.07。
 
