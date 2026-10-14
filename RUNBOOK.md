@@ -369,6 +369,34 @@ conda run -n rsna_knee kaggle competitions submit rsna-knee-abnormality-detectio
 conda run -n rsna_knee kaggle competitions submissions rsna-knee-abnormality-detection
 ```
 
+### 4.6 Colab 與本機訓練
+
+Kaggle 的 GPU 額度留給提交，訓練放在 Colab 與本機。
+
+Colab 的程式、標籤與 runner 由下面這行同步到 Drive 的 `rsna_knee` 資料夾。runner.ipynb 若可能還開著，加上 `KEEP_RUNNER=1`，因為 Colab 的自動存檔會蓋掉剛同步過去的版本。
+
+```bash
+bash tools/sync_colab.sh
+```
+
+- `runner_A.ipynb` 讀 `jobs_A.txt`，`runner_B.ipynb` 讀 `jobs_B.txt`，兩個可以同時開，不會搶同一個工作。每行是 `<名稱> <標籤檔> <seed> [train.py 參數]`，有 `runs/<名稱>/DONE` 的工作會被跳過。
+- `cache_kernels.txt` 決定下載哪一份 cache。cache v4 需要的切片數、尺寸、裁切與範圍以 `env KEY=VALUE` 行寫在裡面，train.py 會拒絕設定不符的 cache。
+- runner 最後一格在工作做完後釋放 runtime，所以整晚放著也不會一直耗運算單元。前面的格子出錯時不會跑到最後一格，這時 runtime 不會自動釋放。
+- GPU 選 L4。A100 的運算單元耗用約是 L4 的 2 到 3 倍，T4 約慢一倍。沒有可用 GPU 時 Colab 會問要不要用 CPU，要選取消。
+
+Colab 的進度由 Claude 自己定時檢查，不靠使用者回報。runner 開始後，在背景執行下面這行，它在工作完成或 log 停止更新 40 分鐘時結束，後者也會跳出 Windows 通知。
+
+```bash
+bash tools/watch_colab.sh W4 W5
+```
+
+需要使用者動手的事，例如打開 runner、選 GPU、重新連線，都要另外跳出 Windows 通知。通知用 `D:\dont_move\git_save\Daily_Task\shared\notify.ps1`，訊息裡不能有雙引號與冒號。
+
+本機訓練用 `tools/train_local_queue.sh`。有三件事要注意。
+- 從 Claude Code 啟動的程序會在 Claude Code 重新啟動時一起結束，所以長時間的訓練改用 WMI 啟動，例如 `data/logs/run_W9.sh`。
+- numpy 底層的 Intel Fortran 程式庫收到 Windows 的關閉視窗事件時會自行中止，log 裡是 `forrtl: error (200)`。佇列腳本已經設好 `FOR_DISABLE_CONSOLE_CTRL_HANDLER=1` 來關掉這個處理。
+- WindowNet 在本機用 `--workers 0`，因為 DataLoader 的子程序在 Windows 上曾經整個卡住而不報錯。
+
 ## 5. Agent 對照實驗
 
 ### 5.1 實驗設計
