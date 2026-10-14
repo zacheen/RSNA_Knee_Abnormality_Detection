@@ -1,6 +1,6 @@
-# Leaderboard probe on CPU. Scores a chosen subset of the WindowNet checkpoints, so one submission answers one question
-# (a single model, a backbone, a label set). CPU keeps it off the two-session GPU limit and the GPU quota, and one
-# member of 3 checkpoints is small enough for the 9 h limit. MEMBERS is the only line that changes between versions.
+# Leaderboard probe. Scores a chosen subset of the WindowNet checkpoints, so one submission answers one question
+# (a single model, a backbone, a label set). It needs a GPU, since one member of 3 checkpoints projected 21.9 h on
+# the CPU against the 9 h limit. MEMBERS is the only line that changes between versions.
 import os  # noqa: E402
 
 MEMBERS = ["W8"]
