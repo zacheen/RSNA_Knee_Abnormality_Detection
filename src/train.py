@@ -102,6 +102,7 @@ def main():
                     help="windows encodes 3-slice RGB windows with per-finding attention, see WindowNet")
     ap.add_argument("--crop", type=int, default=288, help="windows only, square crop taken from the cached slices")
     ap.add_argument("--train-windows", type=int, default=32, help="windows only, windows encoded per study per step")
+    ap.add_argument("--accum", type=int, default=1, help="batches whose gradients add up before each optimizer step")
     ap.add_argument("--avg-last", type=int, default=3, help="keep this many final epochs and average their predictions")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--train-on-gt", action="store_true")
@@ -149,7 +150,7 @@ def main():
     groups = [{"params": enc, "lr": args.backbone_lr}, {"params": rest, "lr": args.lr}]
     opt = torch.optim.AdamW(groups, weight_decay=args.wd)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=[args.backbone_lr, args.lr],
-                                                total_steps=args.epochs * len(dl_tr))
+                                                total_steps=args.epochs * -(-len(dl_tr) // args.accum))
     scaler = torch.amp.GradScaler(enabled=device.type == "cuda")
     bce = torch.nn.BCEWithLogitsLoss(reduction="none")
 
@@ -177,17 +178,19 @@ def main():
     for ep in range(start_ep, args.epochs):
         model.train()
         t0, tot, n = time.time(), 0.0, 0
-        for vol, pres, y in dl_tr:
+        opt.zero_grad(set_to_none=True)
+        for i, (vol, pres, y) in enumerate(dl_tr, 1):
             vol, pres, y = vol.to(device), pres.to(device), y.to(device)
             mask = (y >= 0).float()  # -1 is "report does not address it", so it carries no gradient
             with torch.autocast(device.type, enabled=device.type == "cuda"):
                 logits = model(vol, pres)
             loss = (bce(logits.float(), y.clamp(min=0)) * mask).sum() / mask.sum().clamp(min=1)
-            opt.zero_grad(set_to_none=True)
-            scaler.scale(loss).backward()
-            scaler.step(opt)
-            scaler.update()
-            sched.step()
+            scaler.scale(loss / args.accum).backward()
+            if i % args.accum == 0 or i == len(dl_tr):
+                scaler.step(opt)
+                scaler.update()
+                opt.zero_grad(set_to_none=True)
+                sched.step()
             tot, n = tot + loss.item(), n + 1
         msg = f"epoch {ep + 1}/{args.epochs} loss={tot / max(n, 1):.4f} {time.time() - t0:.0f}s"
         y_va = p_va = None
