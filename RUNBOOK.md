@@ -391,7 +391,7 @@ Colab 的進度由 Claude 自己定時檢查，不靠使用者回報。runner �
 bash tools/watch_colab.sh W4 W5
 ```
 
-需要使用者動手的事，例如打開 runner、選 GPU、重新連線，都要另外跳出 Windows 通知。通知用 Daily_Task 的共用腳本，訊息裡不能有雙引號與冒號。
+需要使用者動手的事，例如打開 runner、選 GPU、重新連線，都要另外跳出 Windows 通知。通知用 Daily_Task 的共用腳本，訊息裡不能有雙引號與冒號。和通知有關的事都先讀 `D:dont_movegit_saveDaily_TasksharedNOTIFICATIONS.md`。
 - `-Category "RSNA Knee"` 讓通知在通知中心自成一組，不會和其他專案的通知混在一起。
 - `-Title` 寫這則通知的性質，例如「需要你操作」、「警告」或「結果」。
 - 每個分類用自己的 AppId 送出，第一次送出時腳本會在開始功能表建立 `RSNA Knee.lnk`，Windows 才會接受這個 AppId 的通知。所以「RSNA Knee」在通知中心與「設定 → 系統 → 通知」裡都是獨立的應用程式，可以單獨關掉。
