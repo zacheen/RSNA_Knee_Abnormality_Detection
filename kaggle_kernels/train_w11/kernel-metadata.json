@@ -1,0 +1,13 @@
+{
+  "id": "zacheenoao/rsna-knee-train-w11",
+  "title": "rsna-knee-train-w11",
+  "code_file": "run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["zacheenoao/rsna-knee-assets"],
+  "competition_sources": ["rsna-knee-abnormality-detection"],
+  "kernel_sources": ["zacheenoao/rsna-knee-build-cache-v4-s0", "zacheenoao/rsna-knee-build-cache-v4-s1", "zacheenoao/rsna-knee-build-cache-v4-s2", "zacheenoao/rsna-knee-build-cache-v4-s3"]
+}

@@ -14,7 +14,7 @@ if [ -f "$LABELS" ]; then cp "$LABELS" "$D/report_labels.jsonl"; fi  # the defau
 # Every label version also ships under its own name, so a kernel can pick one explicitly. v1 lives in
 # report_labels.jsonl locally, which is the alias above, so it is copied as report_labels_v1.jsonl.
 if [ -f data/work/report_labels.jsonl ]; then cp data/work/report_labels.jsonl "$D/report_labels_v1.jsonl"; fi
-for f in data/work/report_labels_v*.jsonl; do [ -f "$f" ] && cp "$f" "$D/"; done
+for f in data/work/report_labels_*.jsonl; do [ -f "$f" ] && cp "$f" "$D/"; done  # v1 to v3, v2s, blend and pseudo label sets
 if [ -d data/wheels ]; then cp data/wheels/*.whl "$D/"; fi
 # The CLI builds its upload cache name from -p, and a path with a slash in it breaks that on Windows, hence -p .
 case "${1:-version}" in
