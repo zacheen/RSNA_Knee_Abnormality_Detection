@@ -394,7 +394,8 @@ bash tools/watch_colab.sh W4 W5
 需要使用者動手的事，例如打開 runner、選 GPU、重新連線，都要另外跳出 Windows 通知。通知用 Daily_Task 的共用腳本，訊息裡不能有雙引號與冒號。
 - `-Category "RSNA Knee"` 讓通知在通知中心自成一組，不會和其他專案的通知混在一起。
 - `-Title` 寫這則通知的性質，例如「需要你操作」、「警告」或「結果」。
-- 自己註冊一個 AppId 來分組行不通，Windows 會直接丟掉那個 AppId 送出的通知。
+- 每個分類用自己的 AppId 送出，第一次送出時腳本會在開始功能表建立 `RSNA Knee.lnk`，Windows 才會接受這個 AppId 的通知。所以「RSNA Knee」在通知中心與「設定 → 系統 → 通知」裡都是獨立的應用程式，可以單獨關掉。
+- 通知收不到時，先查 `[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('ClaudeCode.RSNAKnee').Setting` 是不是 `Enabled`，不要先懷疑呼叫端。
 
 ```bash
 powershell.exe -NoProfile -File "D:\dont_move\git_save\Daily_Task\shared\notify.ps1" -Message "請打開 runner_A" -Title "RSNA Knee 需要你操作" -Category "RSNA Knee"
