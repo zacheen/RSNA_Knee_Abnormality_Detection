@@ -18,7 +18,7 @@ while :; do
       echo "$(date +%H:%M) done $job $(grep -E '^averaged' "$d/train.log" | cut -c1-60)"
       exit 0
     fi
-    if [ -f "$d/train.log" ] && tail -1 "$d/train.log" | grep -qE '^[A-Za-z]*(Error|Exception)\b'; then
+    if [ -f "$d/train.log" ] && tail -1 "$d/train.log" | grep -qE '^[A-Za-z]*(Error|Exception)\b|: error: '; then
       # The runner stops at a failed job and its last cell releases the runtime, so the user has nothing to restart.
       echo "$(date +%H:%M) failed $job, last line $(tail -1 "$d/train.log" | cut -c1-80)"
       notify "Colab 的 $job 訓練失敗，runtime 已經自動釋放，不需要你處理"
