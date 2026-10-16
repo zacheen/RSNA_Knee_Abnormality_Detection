@@ -598,6 +598,7 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | V5A | 2026-10-15 | Kaggle T4，`rsna-knee-train-v5a`。W8 的設定改用 cache v5，拿掉兩個非 FS 的 slot，把切片預算移到三個 FS slot，每個 32 張，總切片數和 v4 差不多。依據是第三方消融顯示拿掉非 FS 序列不掉分。cache v5 由四個 CPU kernel `rsna-knee-build-cache-v5-s0` 到 `-s3` 建 | 建 cache 中，GPU 週額度重置後訓練 | |
 | P3 | 2026-10-15 | Kaggle T4，`rsna-knee-train-p3`。W8 的設定，標籤換成 `report_labels_oof1.jsonl`，也就是五折 OOF 預測與混合標籤各半 | 等 GPU 週額度重置 | |
 | W20 | 2026-10-15 | Colab L4。W8 的設定，epoch 從 12 拉長到 18。中途斷線一次，從第 13 個 epoch 之後用 `--resume` 接回 | 0.9124，落在 b0 各 seed 的 0.910 到 0.919 之間。第 15 個 epoch 單點 0.9175，之後回落，拉長訓練沒有幫助，之後維持 12 epoch | 還沒上傳 |
+| W21 | 2026-10-16 | Colab。W8 的設定，訓練時每步編碼的 window 從 32 增加到 48 個（每個 study 共約 90 個）。每個 epoch 約 600 秒 | 0.9051，比 b0 各 seed 的 0.910 到 0.919 低。訓練時多看 window 沒有幫助，推論時本來就用全部 window | 還沒上傳 |
 
 **第一次拿到排行榜分數（2026-10-13）。** 完成身分驗證後，`rsna-knee-submit-ens` 第 3 版（六個 attention 成員）public 是 0.882，第 5 版（再加 L4 與 L5）是 **0.888**。兩者在 58 筆 GT 上的差距方向相同，所以 58 筆 GT 可以當作排行榜的參考。排行榜第 1 名是 0.966，第 29 名是 0.961，差距約 0.07。
 
