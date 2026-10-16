@@ -597,6 +597,8 @@ conda run --no-capture-output -n rsna_knee python tools/submit_code.py 3 "ensemb
 | 第 8 輪調研 | 2026-10-15 | 上網整理本比賽公開 repo 與論文的做法，結論在 `data/rounds/r8/research_web.md`。只看方法，沒有下載任何 weight | 混合標籤在 58 筆 GT 上已經接近校準，只有 Synovitis 在低標籤區仍有 33% 陽性，單調重映射改不了 AUC，所以不做標籤校準。pairwise ranking loss 需要一個 batch 有多筆 study，我們是 batch 2，也不做 | |
 | V5A | 2026-10-16 | 本機 GPU（cache 在 Kaggle CPU 上建好後下載到本機，`rsna-knee-train-v5a` 沒有使用）。W8 的設定改用 cache v5，拿掉兩個非 FS 的 slot，把切片預算移到三個 FS slot，每個 32 張，總切片數和 v4 差不多。依據是第三方消融顯示拿掉非 FS 序列不掉分。cache v5 由四個 CPU kernel `rsna-knee-build-cache-v5-s0` 到 `-s3` 建 | 0.9086，同 seed 的 W8 是 0.9159。Lateral OA 0.779、Lateral Meniscus 0.845 掉得最多，非 FS 序列對外側結構仍有用。加進 efficientnet 五成員是 0.9189，五成員本身 0.9202，所以維持 cache v4 | 沒有上傳 |
 | P3、P4 | 2026-10-16 | 本機 GPU（`rsna-knee-train-p3` 沒有使用）。W8 的設定，標籤換成 `report_labels_oof1.jsonl`，也就是五折 OOF 預測與混合標籤各半，P3 是 seed 0，P4 是 seed 1。每個 epoch 約 530 秒 | P3 0.9164，P4 0.9095，平均 0.913，與混合標籤的 b0 各 seed 相當。efficientnet 五成員加 P3 再加 W4、W5、W14、W15、W16、W22 是 0.9200，加 P3、P4 是 0.9187，五成員本身 0.9202。58 筆 GT 已經飽和，OOF 偽標籤是否有用只能靠排行榜判斷 | 沒有上傳 |
+| W25、W26 | 2026-10-16 | 本機 GPU。替最後的 ensemble 多準備成員。W25 是 W22 的設定（tf_efficientnetv2_b0）seed 2，W26 是 W8 的設定 seed 4 | W25 0.9140，W26 0.9167 | 還沒上傳 |
+| W27、W28 | 2026-10-16 | 本機 GPU。W27 是 W8 的設定，骨幹換成 convnext_nano，骨幹 lr 用 W1 的 1e-4，用來測不同系列的骨幹能不能增加 ensemble 多樣性。W28 是 W22 的設定 seed 3 | 訓練中 | |
 | W20 | 2026-10-15 | Colab L4。W8 的設定，epoch 從 12 拉長到 18。中途斷線一次，從第 13 個 epoch 之後用 `--resume` 接回 | 0.9124，落在 b0 各 seed 的 0.910 到 0.919 之間。第 15 個 epoch 單點 0.9175，之後回落，拉長訓練沒有幫助，之後維持 12 epoch | 還沒上傳 |
 | W21 | 2026-10-16 | Colab。W8 的設定，訓練時每步編碼的 window 從 32 增加到 48 個（每個 study 共約 90 個）。每個 epoch 約 600 秒 | 0.9051，比 b0 各 seed 的 0.910 到 0.919 低。訓練時多看 window 沒有幫助，推論時本來就用全部 window | 還沒上傳 |
 
