@@ -3,7 +3,7 @@
 # the CPU against the 9 h limit. MEMBERS is the only line that changes between versions.
 import os  # noqa: E402
 
-MEMBERS = ["P3"]
+MEMBERS = ["W8", "W9", "P1", "W11", "W12", "W22", "W23", "W25", "W28", "W27", "W5", "W14", "W26", "W30", "W33", "W34"]
 ckpts = sorted({p for d in range(1, 5) for p in glob.glob("/kaggle/input/" + "*/" * d + "*kneenet*.pt")
                 if os.path.basename(p).split("_kneenet")[0] in MEMBERS})
 print("members", MEMBERS, "checkpoints", len(ckpts), ckpts, flush=True)
