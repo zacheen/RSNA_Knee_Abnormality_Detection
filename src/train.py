@@ -98,7 +98,8 @@ def main():
     ap.add_argument("--backbone-lr", type=float, default=1e-4, help="peak lr for the pretrained encoder")
     ap.add_argument("--wd", type=float, default=1e-3)
     ap.add_argument("--dropout", type=float, default=0.25)
-    ap.add_argument("--pool", choices=["attn", "conv"], default="attn", help="conv also sees slice order")
+    ap.add_argument("--pool", choices=["attn", "conv"], default="attn",
+                    help="conv also sees slice order. slices: depth-conv pooling per slot. windows: residual depth conv over each slot's windows")
     ap.add_argument("--arch", choices=["slices", "windows"], default="slices",
                     help="windows encodes 3-slice RGB windows with per-finding attention, see WindowNet")
     ap.add_argument("--crop", type=int, default=288, help="windows only, square crop taken from the cached slices")
@@ -155,10 +156,9 @@ def main():
                          num_workers=args.workers) if hold_ids else None
 
     if args.arch == "windows":
-        if args.pool != "attn":
-            raise SystemExit("--pool applies to --arch slices only, WindowNet has its own per-finding attention")
         model = WindowNet(args.backbone, pretrained=True, n_slots=len(PLANES), crop=args.crop,
-                          train_windows=args.train_windows, dropout=args.dropout, resize=args.resize).to(device)
+                          train_windows=args.train_windows, dropout=args.dropout, resize=args.resize,
+                          depth_conv=args.pool == "conv").to(device)
     else:
         model = KneeNet(args.backbone, pretrained=True, dropout=args.dropout, pool=args.pool, n_slots=len(PLANES)).to(device)
     window_args = getattr(model, "config", {})

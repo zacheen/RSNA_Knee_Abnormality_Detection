@@ -95,14 +95,21 @@ class WindowNet(nn.Module):
     STD = (0.229, 0.224, 0.225)
 
     def __init__(self, backbone: str = "convnext_tiny", pretrained: bool = True, n_slots: int = 5, crop: int = 288,
-                 train_windows: int = 32, dim: int = 384, chunk: int = 64, dropout: float = 0.2, resize: int = 0):
+                 train_windows: int = 32, dim: int = 384, chunk: int = 64, dropout: float = 0.2, resize: int = 0,
+                 depth_conv: bool = False):
         super().__init__()
         self.encoder = timm.create_model(backbone, pretrained=pretrained, in_chans=3, num_classes=0)
         f = self.encoder.num_features
         self.n_slots, self.crop, self.train_windows, self.chunk, self.resize = n_slots, crop, train_windows, chunk, resize
+        self.depth_conv = depth_conv
         # Everything build_from_checkpoint needs besides backbone and n_slots. dim fixes state_dict shapes.
         self.config = {"crop": crop, "train_windows": train_windows, "dim": dim, "chunk": chunk, "dropout": dropout,
-                       "resize": resize}
+                       "resize": resize, "depth_conv": depth_conv}
+        if depth_conv:
+            # The last layer starts at zero, so training begins from plain attention pooling.
+            self.ctx = nn.Sequential(nn.Conv1d(dim, dim, 3, padding=1), nn.GELU(), nn.Conv1d(dim, dim, 3, padding=1))
+            nn.init.zeros_(self.ctx[-1].weight)
+            nn.init.zeros_(self.ctx[-1].bias)
         self.proj = nn.Sequential(nn.Linear(f, dim), nn.LayerNorm(dim))
         self.slot_emb = nn.Embedding(n_slots, dim)
         self.pos_emb = nn.Linear(1, dim)
@@ -125,16 +132,31 @@ class WindowNet(nn.Module):
         else:
             y0, x0 = (h - c) // 2, (w - c) // 2
         vol = vol[..., y0:y0 + c, x0:x0 + c]
-        slot = torch.arange(p, device=vol.device).repeat_interleave(d - 2)
+        n = d - 2
+        slot = torch.arange(p, device=vol.device).repeat_interleave(n)
         centre = torch.arange(1, d - 1, device=vol.device).repeat(p)
         if self.training and self.train_windows < len(slot):
-            keep = torch.randperm(len(slot), device=vol.device)[: self.train_windows].sort().values
-            slot, centre = slot[keep], centre[keep]
+            if self.depth_conv:
+                # The convolution needs neighbours, so each slot keeps one contiguous run.
+                k = max(1, min(n, self.train_windows // p))
+                start = torch.randint(0, n - k + 1, (p,), device=vol.device)
+                centre = (start[:, None] + 1 + torch.arange(k, device=vol.device)).reshape(-1)
+                slot = torch.arange(p, device=vol.device).repeat_interleave(k)
+            else:
+                keep = torch.randperm(len(slot), device=vol.device)[: self.train_windows].sort().values
+                slot, centre = slot[keep], centre[keep]
         idx = centre[:, None] + torch.arange(-1, 2, device=vol.device)  # [W, 3]
         win = vol[:, slot[:, None], idx]  # [B, W, 3, c, c]
         x = (win.reshape(-1, 3, c, c) - self.mean) / self.std
         feats = torch.cat([self.encoder(self._fit(x[i:i + self.chunk])) for i in range(0, len(x), self.chunk)])
         tok = self.proj(feats.reshape(b, len(slot), -1)) + self.slot_emb(slot) + self.pos_emb((centre / (d - 1))[:, None].to(feats.dtype))
+        if self.depth_conv:
+            # Windows are grouped by slot in ascending depth with equal counts, so a reshape gives one sequence per
+            # slot and the convolution never crosses a slot boundary.
+            k = len(slot) // p
+            assert len(slot) == p * k and bool((slot.view(p, k) == torch.arange(p, device=slot.device)[:, None]).all())
+            seq = tok.reshape(b * p, k, -1).transpose(1, 2)
+            tok = tok + self.ctx(seq).transpose(1, 2).reshape(b, p * k, -1)
         valid = present[:, slot]  # [B, W]
         a = self.score(tok).float().masked_fill(~valid[..., None], float("-inf"))
         a = torch.nan_to_num(torch.softmax(a, dim=1))  # a study with no slot at all gets zero weights, not NaN
