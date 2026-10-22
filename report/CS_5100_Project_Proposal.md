@@ -5,7 +5,8 @@ Team members: Yujing Wang, Yu-Chang Shih
 ## 1. Introduction
 
 The knee is among the most commonly imaged joints, and its injuries and degenerative disorders can substantially impair mobility and quality of life [1,2].
-Common knee disorders affect a substantial proportion of adults: knee osteoarthritis was estimated to affect 654 million people aged 40 years and older worldwide in 2020 [2], while the Framingham study found meniscal tears on MRI in 31% of 991 adults aged 50–90 years, often in the absence of knee symptoms [3].
+Common knee disorders affect a substantial proportion of adults: knee osteoarthritis was estimated to affect 654 million people aged 40 years and older worldwide in 2020 [2], while the Framingham Osteoarthritis Study found a meniscal tear, alone or with meniscal destruction, on right-knee MRI in 31% of 991 adults aged 50–90 years [3].
+In that study, 61% of these tears occurred in participants without knee pain, aching or stiffness in the previous month [3].
 Assessing these disorders requires detailed evaluation of the joint’s soft tissues and bone.
 Magnetic resonance imaging (MRI) provides this anatomical detail without ionizing radiation and can reveal coexisting ligament injuries, meniscal tears, cartilage damage and bone lesions [1,4].
 
@@ -30,27 +31,28 @@ MARS separates shared anatomical information from acquisition-dependent variatio
 Hoyer et al. adapted SAM-family segmentation models to five musculoskeletal regions and used the resulting measurements for knee triage and outcome prediction [8].
 These studies demonstrate the breadth of pretrained MRI analysis; their relevance to our project lies in representation learning and adaptation, while detection of individual abnormalities requires task-specific evaluation.
 
-An early foundation for knee classification was MRNet, which combined ImageNet-pretrained slice encoders, max pooling within series and logistic regression across imaging planes [1].
-Using labels manually extracted from reports, it detected general abnormalities, anterior cruciate ligament (ACL) tears and meniscal tears.
+An early foundation for knee classification was MRNet, which combined ImageNet-pretrained AlexNet slice encoders, max pooling across the slices of each series and logistic regression across imaging planes [1].
+Trained on labels manually extracted from reports and evaluated internally against the majority vote of three musculoskeletal radiologists, it detected general abnormalities, anterior cruciate ligament (ACL) tears and meniscal tears.
 External evaluation underscored the importance of domain adaptation: the area under the receiver operating characteristic curve (AUC) for ACL injury increased from 0.824 to 0.911 after training on data from the external institution.
 MRNet therefore provides a precedent for both transfer learning and report-derived supervision, as well as a warning against assuming that performance will transfer unchanged between datasets.
 
 CoPAS extended this approach to twelve abnormalities through three-dimensional convolutional features and attention across planes and sequences [4].
-Its five-center cohort comprised 1,748 patients, with arthroscopic reference standards for meniscal, ACL and cartilage lesions and MRI-based labels for other findings.
-Mean AUC was 0.812 internally and 0.721–0.726 externally.
-The multisequence architecture and reader study support learned integration of complementary views, but the surgical cohort, exclusion of scans with artifacts and requirement for three imaging planes restrict applicability to routine examinations.
+Its five-center cohort comprised 1,748 patients, all of whom underwent knee arthroscopy, with arthroscopic reference standards for meniscal, ACL and cartilage lesions and MRI-based labels for the other nine findings.
+Mean AUC was 0.812 at the development center and 0.721–0.726 at the external centers.
+The multisequence architecture and reader study support learned integration of complementary views, but the surgical cohort and the exclusion of scans with motion or metal artifacts restrict applicability to routine examinations.
+The authors also identify the need for scans in three planes as a limitation.
 The twelve categories also differ from the RSNA targets, precluding a direct comparison of aggregate scores.
 
 Xie et al. evaluated a larger cohort of 14,962 examinations from 13,419 patients across five centers [5].
-Their system localized the knee using meniscus segmentation and applied nine independently trained classifiers, each using attention to refine relevant image regions.
+Although described as a multi-task system, it localized the knee through three-dimensional meniscus segmentation and then applied nine independently trained classifiers, each using attention to refine relevant image regions.
 External testing and staged reader studies showed improved diagnostic accuracy and shorter reading times with model assistance.
 The reference standard nevertheless relied on MRI and report review without arthroscopic confirmation, and the retrospective Chinese cohorts leave prospective and international generalizability unestablished.
 This study also provides an architectural alternative to a shared model: a separate classifier for each finding.
 
 Beyond current abnormalities, MRI models have been used to predict future clinical outcomes.
-MR-Transformer adapted an ImageNet-pretrained vision transformer to volumetric MRI through positional embeddings and attention across patches [9].
-For total knee replacement prediction, sevenfold nested cross-validation in matched Osteoarthritis Initiative and Multicenter Osteoarthritis Study cohorts yielded AUCs of 0.84–0.88 across four sequences.
-Performance did not differ significantly from MRNet despite substantially greater computational requirements.
+MR-Transformer adapted the ImageNet-pretrained DeiT-Tiny vision transformer to volumetric MRI through positional embeddings and attention across patches [9].
+For total knee replacement prediction, sevenfold nested cross-validation on case-control pairs from the Osteoarthritis Initiative and Multicenter Osteoarthritis Study, matched on sex, race, age and body mass index, yielded AUCs of 0.84–0.88 across four sequences.
+The authors found no evidence of a difference from MRNet (P = .36–.92) despite substantially greater computational requirements.
 These results support evaluating computational cost alongside discrimination and motivate our use of compact pretrained image encoders.
 The prognostic endpoint and predominantly older, overweight, White cohorts limit direct extrapolation to abnormality detection.
 
