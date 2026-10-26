@@ -33,21 +33,11 @@ Within Approach A, we will also run the ablations below. Each changes one part o
 
 | Ablation | Why we want to test it |
 |---|---|
-| Graded soft labels against three-state labels | Reports describe degree and certainty, which a present, absent or not-mentioned label discards |
-| Blended label sources against a single extraction | Independently produced label sets are unlikely to make the same errors on the same reports |
-| Soft against hard targets | Earlier comparisons changed the learning rate and regularization at the same time |
-| Reduced weights for uncertain targets | Targets near 0.5 come from equivocal wording and are probably noisier than confident ones |
-| Excluding, zeroing or down-weighting unmentioned findings | A report may omit a finding because it is absent or only because it was not worth reporting |
-| In-sample against out-of-fold pseudo-labels | A model trained on thousands of reports may correct some report noise, but in-sample predictions risk reproducing memorized labels |
-| Three-slice windows against single slices | A single grayscale slice gives a 2D encoder no context from neighbouring slices |
-| 128 mm against 160 mm crops | A tighter crop may cut off peripheral structures such as the collateral ligaments |
-| Five series against fat-suppressed series only | Non-fat-suppressed series may show bone and degenerative change better, although an external ablation found them of little use |
-| Attention against mean pooling | Attention assumes that only a few windows carry the evidence for a finding |
+| Three-slice windows against single slices | A single grayscale slice gives a 2D encoder no context from neighbouring slices, which is the context a 3D encoder reads directly |
 | A residual convolution across windows | Attention pooling ignores slice order, although the extent of a lesion across slices is diagnostic |
-| ResNet18 against DINOv2-small encoders, frozen or fine-tuned | ImageNet features come from natural photographs, and self-supervised features may transfer differently to MRI |
-| Dropout, longer training, larger batches and higher resolution | A small labeled set may reward regularization, while subtle findings may need more capacity |
-| Extra seeds against members from other architecture families | Different architectures should make less correlated errors than seeds of one recipe |
-| Blending the predictions of related findings | Some findings co-occur for anatomical reasons, such as synovitis with effusion |
+| Attention against mean pooling | Attention assumes that only a few windows carry the evidence for a finding, and both approaches share this head |
+| Five series against fat-suppressed series only | Non-fat-suppressed series may show bone and degenerative change better, although an external ablation found them of little use |
+| Down-weighting uncertain targets, and excluding, zeroing or down-weighting unmentioned findings | Targets near 0.5 come from equivocal wording, and a report may omit a finding because it is absent or only because it was not worth reporting |
 | Model against label agreement for each finding | Comparing the two separates findings limited by their labels from findings limited by the model |
 
 Approach B replaces WindowNet's 2D window encoder with a 3D convolutional network that reads each series as a whole volume, and keeps everything else identical: cache, labels, per-finding attention head, training schedule and test-time mirroring. A 3D encoder can follow the ACL or a meniscus continuously through the slices, much as a radiologist does when scrolling. We will start with a small video-pretrained 3D ResNet (R3D-18 or R(2+1)D-18 [10]) on a single series. We will then extend it to all five series and add, if time permits, a CoPAS-style attention layer across series. Pretrained 3D encoders are scarcer than 2D ones, so the choice of initialization matters:
