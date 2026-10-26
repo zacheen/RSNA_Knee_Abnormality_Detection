@@ -22,6 +22,16 @@ Our approach combines labels extracted from multilingual radiology reports with 
 Reports provide supervision during training; prediction requires only images and acquisition metadata.
 Building on the implemented system, we will examine which design choices improve performance and how reliably these improvements can be assessed with limited expert annotation.
 
+Why the task is hard.
+The competition is scored by macro AUC, the probability that a randomly chosen positive examination is ranked above a randomly chosen negative one, averaged over the twelve findings, and even the strongest entries fall short of perfect ranking.
+We see five reasons for this gap, and each one shapes the questions we ask.
+First, the reference labels are themselves imperfect, because radiologists reading the same examination disagree, particularly on subtle lesions that resemble normal variants [1,5].
+Second, the training labels and the reference labels follow different criteria, since a report is written for clinical communication and often omits findings that a radiologist annotating the images would mark.
+Third, only 58 examinations carry expert labels, so the variation caused by the random seed alone can be as large as the differences between methods.
+Fourth, the input is heterogeneous, with between three and fourteen series per examination, varying protocols, missing sequences and reports in several languages.
+Fifth, subtle findings call for fine spatial detail across many slices, while the competition requires offline inference on about 1,300 examinations within nine hours, which limits model size, resolution and ensemble size.
+Our central question is therefore how much of the remaining error comes from the labels rather than from the model, and which design choices still help once label noise and evaluation noise are taken into account.
+
 ## 2. Previous Work and Contributions
 
 ### Related work
