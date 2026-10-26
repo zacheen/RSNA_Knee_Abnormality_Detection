@@ -129,17 +129,38 @@ Soft against hard targets.
 Earlier comparisons of soft and hard labels changed the learning rate and regularization at the same time.
 We will repeat the comparison with only the targets changed, thresholding the blended labels at 0.5 while keeping missing findings excluded.
 
+Weighting uncertain targets.
+Soft targets near 0.5 come from equivocal report wording and are probably noisier than confident ones.
+We will compare equal loss weights with reduced weights for uncertain targets, since down-weighting may remove noise but may also discard useful supervision.
+
+Findings the report does not mention.
+A report that omits a finding may mean that the finding is absent, or only that the radiologist did not consider it worth reporting.
+We will compare excluding these findings from the loss, treating them as negative, and assigning them a small prior probability.
+
 Order-aware pooling.
 Attention pooling treats the slices of a series as an unordered set, although the extent of a lesion across consecutive slices is diagnostic.
 We will add a residual one-dimensional convolution over each series' windows before the attention, initialized to zero so that training starts from plain attention pooling.
+
+Attention against mean pooling.
+Finding-specific attention assumes that only a few windows carry the evidence for a given finding, such as the slices that cross a torn ligament.
+A mean-pooling baseline over the same windows will test whether this learned aggregation improves detection or only adds parameters.
 
 Regularization and capacity.
 Small labelled datasets often reward regularization, while subtle findings may need more capacity.
 We will test dropout inside the finding-attention scorer, longer training, a larger effective batch through gradient accumulation, higher input resolution, more windows per training step, and larger backbones of the same family.
 
+Encoder pretraining.
+ImageNet features are learned from natural photographs, whereas self-supervised features such as DINOv2 may transfer differently to grayscale MRI.
+We will compare ResNet18 and DINOv2-small within the same pipeline, with identical preprocessing, slice sampling and data splits, and test limited fine-tuning against frozen encoders.
+Three-dimensional encoders would preserve spatial relationships across slices, but their memory cost is hard to afford on a single-GPU budget.
+
 Ensembles across architecture families.
 Models from the same recipe with different seeds tend to make correlated errors, whereas different architectures attend to different image features.
 We will compare adding seeds of one recipe against adding members from other families (EfficientNet, EfficientNetV2 and ConvNeXt).
+
+Model and label agreement per finding.
+A model trained on noisy labels cannot be expected to exceed its labels where reports systematically omit a finding, but it may exceed them where the noise is random.
+For each finding we will compare the model's agreement with the expert labels against the agreement of the report labels themselves, together with how often experts and reports call the finding positive, to separate findings limited by labels from findings limited by the model.
 
 Combining related findings.
 Some findings co-occur for anatomical reasons, such as synovitis with effusion, and the weakest findings are those whose report labels agree least with expert reading.
