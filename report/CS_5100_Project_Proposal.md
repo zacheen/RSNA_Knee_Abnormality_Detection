@@ -33,11 +33,11 @@ Within Approach A, we will also run the ablations below. Each changes one part o
 
 | Ablation | Why we want to test it |
 |---|---|
-| Three-slice windows against single slices | A single grayscale slice gives a 2D encoder no context from neighbouring slices, which is the context a 3D encoder reads directly |
-| A residual convolution across windows | Attention pooling ignores slice order, although the extent of a lesion across slices is diagnostic |
-| Attention against mean pooling | Attention assumes that only a few windows carry the evidence for a finding, and both approaches share this head |
-| Five series against fat-suppressed series only | Non-fat-suppressed series may show bone and degenerative change better, although an external ablation found them of little use |
-| Down-weighting uncertain targets, and excluding, zeroing or down-weighting unmentioned findings | Targets near 0.5 come from equivocal wording, and a report may omit a finding because it is absent or only because it was not worth reporting |
+| Three-slice windows against single slices | A single grayscale slice, as in MRNet [3], gives a 2D encoder no context from neighbouring slices, which is the context a 3D encoder reads directly |
+| A residual convolution across windows | Attention pooling ignores slice order, although the extent of a lesion across slices is diagnostic, and zero-initialized 3D residual blocks inside a 2D ResNet have added this context in knee MRI [14] |
+| Attention against mean pooling | Attention assumes that only a few windows carry the evidence for a finding [9], both approaches share this head, and plain mean pooling matched or beat attention-based pooling on several 3D neuroimaging tasks [15] |
+| Five series against fat-suppressed series only | Non-fat-suppressed series may show bone and degenerative change better, and CoPAS combines several sequences [6], although a public competition repository found the non-fat-suppressed series of little use [19] |
+| Down-weighting uncertain targets, and excluding, zeroing or down-weighting unmentioned findings | Targets near 0.5 come from equivocal wording, and a report may omit a finding because it is absent or only because it was not worth reporting. CheXpert compared ignoring uncertain labels with mapping them to zero or one [16], report-derived labels can keep "not mentioned" apart from "absent" [17], and unobserved labels can be treated as noisy negatives [18] |
 | Model against label agreement for each finding | Comparing the two separates findings limited by their labels from findings limited by the model |
 
 Approach B replaces WindowNet's 2D window encoder with a 3D convolutional network that reads each series as a whole volume, and keeps everything else identical: cache, labels, per-finding attention head, training schedule and test-time mirroring. A 3D encoder can follow the ACL or a meniscus continuously through the slices, much as a radiologist does when scrolling. We will start with a small video-pretrained 3D ResNet (R3D-18 or R(2+1)D-18 [10]) on a single series. We will then extend it to all five series and add, if time permits, a CoPAS-style attention layer across series. Pretrained 3D encoders are scarcer than 2D ones, so the choice of initialization matters:
@@ -80,3 +80,9 @@ Overall, we expect a single 3D model to land near, and possibly below, a single 
 11. Chen, S., Ma, K. & Zheng, Y. Med3D: Transfer Learning for 3D Medical Image Analysis. arXiv:1904.00625 (2019). https://arxiv.org/abs/1904.00625
 12. Qiu, Z. et al. Large-scale multi-sequence pretraining for generalizable MRI analysis in versatile clinical applications. *Nat. Biomed. Eng.* (2026). https://doi.org/10.1038/s41551-026-01740-5
 13. Carreira, J. & Zisserman, A. Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset. *CVPR* (2017). https://arxiv.org/abs/1705.07750
+14. Vuskov, R. et al. Comprehensive deep learning-assisted multi-condition analysis of knee MRI studies improves resident radiologist performance. *Eur. Radiol.* (2025). https://doi.org/10.1007/s00330-025-12052-8
+15. Harvey, E. et al. A Multi-Dataset Benchmark of Multiple Instance Learning for 3D Neuroimage Classification. arXiv:2604.26807 (2026). https://arxiv.org/abs/2604.26807
+16. Irvin, J. et al. CheXpert: A Large Chest Radiograph Dataset with Uncertainty Labels and Expert Comparison. *Proc. AAAI Conf. Artif. Intell.* 33, 590–597 (2019). https://doi.org/10.1609/aaai.v33i01.3301590
+17. Bigolin Lanfredi, R., Mukherjee, P. & Summers, R. M. Enhancing chest X-ray datasets with privacy-preserving large language models and multi-type annotations: a data-driven approach for improved classification. *Med. Image Anal.* (2024). https://doi.org/10.1016/j.media.2024.103383
+18. Kim, Y., Kim, J. M., Akata, Z. & Lee, J. Large Loss Matters in Weakly Supervised Multi-Label Classification. *CVPR* (2022). https://arxiv.org/abs/2206.03740
+19. ibrahimdodo. knee-mri-raptor. GitHub repository for the RSNA Knee Abnormality Detection competition (2026). https://github.com/ibrahimdodo/knee-mri-raptor
