@@ -55,7 +55,7 @@ The comparison itself needs care, because the 58 expert-labeled studies have alr
 
 ## 3. Expected and Preliminary Results
 
-Yu-Chang Shih has already built the full pipeline that both approaches rely on. The raw data is about 570 GB, so the work is split across platforms: reports are labeled locally with a language model, DICOM files are converted into the cache on Kaggle CPU kernels where the data lives, models are trained on Kaggle GPUs, Colab and a local GPU, and inference runs offline in a Kaggle notebook within the 9-hour limit. Every checkpoint records the code version that trained it, so each result traces back to its exact code [8].
+Both approaches build on an existing pipeline that labels the reports, converts the DICOM files into the cache and runs inference offline in a Kaggle notebook [8].
 
 Early work with this pipeline also exposed two limitations, both partly expected given the small expert set. Better label agreement did not produce a measurable gain in the image models, and rankings on the 58 studies often disagreed with the leaderboard. In addition, the move from an earlier slice encoder with attention pooling to WindowNet changed series selection, cropping and slice windows at once, so its gain cannot be credited to any single component. These observations motivate the stricter evaluation protocol described above.
 
